@@ -45,12 +45,13 @@ type Window struct {
 
 	// Menu
 	menu struct {
-		switcher    *Switcher             // Allow switching between main menu
-		stack       *gtk.Stack            // Menu switching
-		screens     map[bool]*ContentView // Mapping to content views
-		welcomePage pages.Page            // Pointer to the welcome page
-		currentPage pages.Page            // Pointer to the currently open page
-		installPage pages.Page            // Pointer to the installer page
+		switcher     *Switcher             // Allow switching between main menu
+		stack        *gtk.Stack            // Menu switching
+		screens      map[bool]*ContentView // Mapping to content views
+		welcomePage  pages.Page            // Pointer to the welcome page
+		preCheckPage pages.Page            // Pointer to the pre-check page
+		currentPage  pages.Page            // Pointer to the currently open page
+		installPage  pages.Page            // Pointer to the installer page
 	}
 
 	// Buttons
@@ -225,6 +226,39 @@ func (window *Window) createWelcomePage() (*Window, error) {
 	return window, nil
 }
 
+// createPreCheckPage creates the pre-check page
+func (window *Window) createPreCheckPage() (*Window, error) {
+	window.banner.labelText.SetMarkup(GetWelcomeMessage())
+
+	window.contentLayout.Remove(window.rootStack)
+	window.contentLayout.PackStart(window.rootStack, true, true, 0)
+
+	// Our pages
+	pageCreators := []PageConstructor{
+		// required
+		pages.NewPreCheckPage,
+	}
+
+	for _, f := range pageCreators {
+		page, err := f(window, window.model)
+		if err != nil {
+			return nil, err
+		}
+		if err = window.AddPage(page); err != nil {
+			return nil, err
+		}
+	}
+
+	// Show the whole window now
+	window.handle.ShowAll()
+	window.ActivatePage(window.menu.preCheckPage)
+
+	window.buttons.exit.SetLabel(utils.Locale.Get("EXIT"))
+	window.buttons.next.SetLabel(utils.Locale.Get("NEXT"))
+
+	return window, nil
+}
+
 // createMenuPages creates the menu pages
 func (window *Window) createMenuPages() (*Window, error) {
 	var err error
@@ -250,7 +284,7 @@ func (window *Window) createMenuPages() (*Window, error) {
 		return nil, err
 	}
 
-	// Our pages
+	// Create rest of the pages
 	pageCreators := []PageConstructor{
 		// required
 		pages.NewTimezonePage,
@@ -330,6 +364,8 @@ func (window *Window) AddPage(page pages.Page) error {
 
 	if id == pages.PageIDWelcome {
 		window.menu.welcomePage = page
+	} else if id == pages.PageIDPreCheck {
+		window.menu.preCheckPage = page
 	} else if id == pages.PageIDInstall {
 		window.menu.installPage = page
 	} else { // Add to the required or advanced (optional) screen
@@ -397,7 +433,7 @@ func (window *Window) CreateFooter(store *gtk.Box) error {
 	if window.buttons.next, err = createNavButton(utils.Locale.Get("NEXT"), "button-confirm"); err != nil {
 		return err
 	}
-	if _, err = window.buttons.next.Connect("clicked", func() { window.launchMenuView() }); err != nil {
+	if _, err = window.buttons.next.Connect("clicked", func() { window.pageNext() }); err != nil {
 		return err
 	}
 
@@ -489,6 +525,17 @@ func (window *Window) UpdateFooter(store *gtk.Box) error {
 	return nil
 }
 
+// pageNext handles next page.
+func (window *Window) pageNext() {
+	id := window.menu.currentPage.GetID()
+	switch id {
+	case pages.PageIDWelcome:
+		window.launchPreCheckView()
+	case pages.PageIDPreCheck:
+		window.launchMenuView()
+	}
+}
+
 // pageClosed handles closure of a page.
 func (window *Window) pageClosed(applied bool) {
 	// If applied, tell page to stash in model
@@ -524,6 +571,11 @@ func (window *Window) ActivatePage(page pages.Page) {
 	if id == pages.PageIDWelcome { // Welcome Page
 		window.banner.Show()
 		window.buttons.stack.SetVisibleChildName("welcome")
+	} else if id == pages.PageIDPreCheck {
+		window.banner.Show()
+		window.buttons.stack.SetVisibleChildName("welcome")
+		window.SetButtonState(pages.ButtonNext, false)
+		window.SetButtonState(pages.ButtonExit, true)
 	} else if id == pages.PageIDInstall { // Install Page
 		window.menu.switcher.Hide()
 		window.banner.Show()
@@ -555,7 +607,7 @@ func (window *Window) ActivatePage(page pages.Page) {
 
 // SetButtonState is called by the pages to enable/disable certain buttons.
 func (window *Window) SetButtonState(flags pages.Button, enabled bool) {
-	if window.menu.currentPage.GetID() != pages.PageIDWelcome {
+	if window.menu.currentPage.GetID() != pages.PageIDWelcome && window.menu.currentPage.GetID() != pages.PageIDPreCheck {
 		if flags&pages.ButtonCancel == pages.ButtonCancel {
 			window.buttons.cancel.SetSensitive(enabled)
 		}
@@ -608,6 +660,15 @@ func (window *Window) launchWelcomeView() {
 	window.mainLayout.Remove(window.contentLayout)
 	window.mainLayout.Remove(window.banner.GetRootWidget())
 	if _, err := window.createWelcomePage(); err != nil {
+		log.ErrorError(err) // TODO: Handle error
+	}
+}
+
+// launchPreCheckView launches the pre-check view view
+func (window *Window) launchPreCheckView() {
+	window.menu.currentPage.StoreChanges()
+
+	if _, err := window.createPreCheckPage(); err != nil {
 		log.ErrorError(err) // TODO: Handle error
 	}
 }

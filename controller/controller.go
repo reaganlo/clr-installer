@@ -6,6 +6,7 @@ package controller
 
 import (
 	"fmt"
+	"github.com/clearlinux/clr-installer/syscheck"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -47,6 +48,19 @@ func sortMountPoint(bds []*storage.BlockDevice) []*storage.BlockDevice {
 	})
 
 	return bds
+}
+
+// PreCheck is the main pre-check controller.
+func PreCheck(model *model.SystemInstall) error {
+	if err := SystemCheck(); err != nil {
+		return err
+	}
+
+	if err := ConfigureNetwork(model); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Install is the main install controller, this is the entry point for a full
@@ -542,6 +556,18 @@ func ConfigureNetwork(model *model.SystemInstall) error {
 
 	NetworkPassing = true
 
+	return nil
+}
+
+// SystemCheck checks if the system is compatible for installing
+func SystemCheck() error {
+	msg := utils.Locale.Get("Checking system for compatibility")
+	prg := progress.NewLoop(msg)
+	if err := syscheck.RunSystemCheck(true); err != nil {
+		prg.Failure()
+		return err
+	}
+	prg.Success()
 	return nil
 }
 
