@@ -12,14 +12,11 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 
 	ctrl "github.com/clearlinux/clr-installer/controller"
+	"github.com/clearlinux/clr-installer/gui/common"
 	"github.com/clearlinux/clr-installer/model"
 	"github.com/clearlinux/clr-installer/network"
 	"github.com/clearlinux/clr-installer/progress"
 	"github.com/clearlinux/clr-installer/utils"
-)
-
-var (
-	loopWaitDuration = 200 * time.Millisecond
 )
 
 // InstallPage is a specialised page type with no corresponding
@@ -242,7 +239,7 @@ func (install *InstallPage) Success() {
 
 // LoopWaitDuration will return the duration for step-waits
 func (install *InstallPage) LoopWaitDuration() time.Duration {
-	return loopWaitDuration
+	return common.LoopWaitDuration
 }
 
 // Partial handles an actual progress update

@@ -6,6 +6,7 @@ package gui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/gotk3/gotk3/gtk"
 
@@ -75,9 +76,10 @@ type Window struct {
 		cancel  *gtk.Button // Cancel changes
 	}
 
-	didInit  bool                // Whether initialized the view animation
-	pages    map[int]gtk.IWidget // Mapping to each root page
-	scanInfo pages.ScanInfo      // Information related to scanning the media
+	didInit      bool                // Whether initialized the view animation
+	pages        map[int]gtk.IWidget // Mapping to each root page
+	scanInfo     pages.ScanInfo      // Information related to scanning the media
+	preCheckInfo pages.PreCheckInfo  // Information related to installation pre-check
 }
 
 // CreateHeaderBar creates invisible header bar
@@ -253,8 +255,7 @@ func (window *Window) createPreCheckPage() (*Window, error) {
 	window.handle.ShowAll()
 	window.ActivatePage(window.menu.preCheckPage)
 
-	window.buttons.exit.SetLabel(utils.Locale.Get("EXIT"))
-	window.buttons.next.SetLabel(utils.Locale.Get("NEXT"))
+	//window.buttons.exit.SetLabel(utils.Locale.Get("EXIT")) // This is done just to translate label based on localization
 
 	return window, nil
 }
@@ -527,11 +528,29 @@ func (window *Window) UpdateFooter(store *gtk.Box) error {
 
 // pageNext handles next page.
 func (window *Window) pageNext() {
-	id := window.menu.currentPage.GetID()
-	switch id {
-	case pages.PageIDWelcome:
+	if !window.preCheckInfo.Done { // If pre-check has not been done at least once, launch the pre-check view first
+		window.preCheckInfo.Channel = make(chan bool)
+		go func() {
+			var duration time.Duration
+			for {
+				select {
+				case <-window.preCheckInfo.Channel:
+					window.preCheckInfo.Done = true
+					window.launchMenuView()
+					return
+				default:
+					time.Sleep(common.LoopWaitDuration)
+					duration += common.LoopWaitDuration
+					// Safety check. In case reading the channel gets delayed for some reason,
+					// do not hold up loading the page.
+					if duration > common.LoopTimeOutDuration {
+						return
+					}
+				}
+			}
+		}()
 		window.launchPreCheckView()
-	case pages.PageIDPreCheck:
+	} else {
 		window.launchMenuView()
 	}
 }
@@ -568,15 +587,17 @@ func (window *Window) ActivatePage(page pages.Page) {
 	window.menu.currentPage = page
 	id := page.GetID()
 
-	if id == pages.PageIDWelcome { // Welcome Page
+	switch id {
+	case pages.PageIDWelcome:
 		window.banner.Show()
 		window.buttons.stack.SetVisibleChildName("welcome")
-	} else if id == pages.PageIDPreCheck {
+	case pages.PageIDPreCheck:
 		window.banner.Show()
 		window.buttons.stack.SetVisibleChildName("welcome")
-		window.SetButtonState(pages.ButtonNext, false)
-		window.SetButtonState(pages.ButtonExit, true)
-	} else if id == pages.PageIDInstall { // Install Page
+		window.buttons.next.Hide()
+		window.buttons.exit.SetLabel(utils.Locale.Get("EXIT")) // This is done just to translate label based on localization
+		window.buttons.exit.SetSensitive(true)
+	case pages.PageIDInstall:
 		window.menu.switcher.Hide()
 		window.banner.Show()
 		window.banner.labelText.SetMarkup(GetThankYouMessage())
@@ -590,19 +611,16 @@ func (window *Window) ActivatePage(page pages.Page) {
 		} else {
 			sc.AddClass("button-confirm")
 		}
-		window.SetButtonState(pages.ButtonQuit, false)
-	} else {
+		window.buttons.quit.SetSensitive(false)
+	default:
 		window.menu.switcher.Hide()
 		window.banner.Hide()
 		window.buttons.stack.SetVisibleChildName("secondary")
-		window.SetButtonState(pages.ButtonConfirm, false)
+		window.buttons.confirm.SetSensitive(false)
 	}
 
-	// Allow page to take control now
-	page.ResetChanges()
-
-	// Set the root stack to show the new page
-	window.rootStack.SetVisibleChild(window.pages[id])
+	page.ResetChanges()                                // Allow page to take control now
+	window.rootStack.SetVisibleChild(window.pages[id]) // Set the root stack to show the new page
 }
 
 // SetButtonState is called by the pages to enable/disable certain buttons.
@@ -666,6 +684,7 @@ func (window *Window) launchWelcomeView() {
 
 // launchPreCheckView launches the pre-check view view
 func (window *Window) launchPreCheckView() {
+	log.Debug("Launching PreCheckView")
 	window.menu.currentPage.StoreChanges()
 
 	if _, err := window.createPreCheckPage(); err != nil {
@@ -675,6 +694,7 @@ func (window *Window) launchPreCheckView() {
 
 // launchMenuView launches the menu view
 func (window *Window) launchMenuView() {
+	log.Debug("Launching MenuView")
 	window.menu.currentPage.StoreChanges()
 
 	// If syscheck fails, launch a dialog box and force the user to exit
@@ -835,6 +855,11 @@ func (window *Window) GetScanMedia() []*storage.BlockDevice {
 // SetScanMedia is the setter for ScanInfo Media
 func (window *Window) SetScanMedia(scannedMedia []*storage.BlockDevice) {
 	window.scanInfo.Media = scannedMedia
+}
+
+// SetPreCheckChannel is the setter for PreCheckInfo Channel
+func (window *Window) SetPreCheckChannel(success bool) {
+	window.preCheckInfo.Channel <- success
 }
 
 // GetWelcomeMessage gets the welcome message

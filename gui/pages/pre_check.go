@@ -12,6 +12,7 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 
 	ctrl "github.com/clearlinux/clr-installer/controller"
+	"github.com/clearlinux/clr-installer/gui/common"
 	"github.com/clearlinux/clr-installer/model"
 	"github.com/clearlinux/clr-installer/progress"
 	"github.com/clearlinux/clr-installer/utils"
@@ -144,16 +145,20 @@ func (page *PreCheckPage) ResetChanges() {
 	go func() {
 		progress.Set(page)
 		err := ctrl.PreCheck(page.model)
+		var success bool
 		if err != nil {
 			text := utils.Locale.Get("Prerequisites for installation are not met.")
 			text = text + " " + strings.Split(err.Error(), "\n")[0]
 			page.info.SetText(text)
+			success = false
 		} else {
-			page.controller.SetButtonState(ButtonNext, true)
-			text := "<span foreground='white'>" + "Prerequisites for installation are met. You can proceed." + "</span>"
+			text := "<span foreground='white'>" + "Prerequisites for installation are met. Proceeding." + "</span>"
 			page.info.SetMarkup(text)
+			success = true
 		}
 		page.pbar.SetFraction(1.0)
+		time.Sleep(common.LoopWaitDuration) // Wait for a while so that the user can read the message
+		page.controller.SetPreCheckChannel(success)
 	}()
 }
 
@@ -199,7 +204,7 @@ func (page *PreCheckPage) Success() {
 
 // LoopWaitDuration will return the duration for step-waits
 func (page *PreCheckPage) LoopWaitDuration() time.Duration {
-	return loopWaitDuration
+	return common.LoopWaitDuration
 }
 
 // Partial handles an actual progress update
