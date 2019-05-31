@@ -523,3 +523,31 @@ msgstr "Verifying files integrity"
 
 msgid "Downloading missing files"
 msgstr "Downloading missing files"
+
+msgid "Checking system for compatibility"
+msgstr "Checking system for compatibility"
+
+#, c-format
+msgid "Exit and use %s to configure network."
+msgstr "Exit and use %s to configure network."
+
+msgid "Installation in progress."
+msgstr "Installation in progress."
+
+msgid "Installation successful."
+msgstr "Installation successful."
+
+msgid "Exit."
+msgstr "Exit."
+
+msgid "Checking Prerequisites"
+msgstr "Checking Prerequisites"
+
+msgid "Checking Prerequisites."
+msgstr "Checking Prerequisites."
+
+msgid "Prerequisites for installation are not met."
+msgstr "Prerequisites for installation are not met."
+
+msgid "Prerequisites for installation are met. Proceeding."
+msgstr "Prerequisites for installation are met. Proceeding."

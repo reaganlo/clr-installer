@@ -523,3 +523,31 @@ msgstr "Verificando la integridad de archivos"
 
 msgid "Downloading missing files"
 msgstr "Descargando los archivos faltantes"
+
+msgid "Checking system for compatibility"
+msgstr "Comprobando la compatibilidad del sistema"
+
+#, c-format
+msgid "Exit and use %s to configure network."
+msgstr "Salga y use %s para configurar la red."
+
+msgid "Installation in progress."
+msgstr "Instalación en curso."
+
+msgid "Installation successful."
+msgstr "Instalación exitosa."
+
+msgid "Exit."
+msgstr "Salida."
+
+msgid "Checking Prerequisites"
+msgstr "Comprobación de requisitos previos"
+
+msgid "Checking Prerequisites."
+msgstr "Comprobación de requisitos previos."
+
+msgid "Prerequisites for installation are not met."
+msgstr "Los requisitos previos para la instalación no se cumplen."
+
+msgid "Prerequisites for installation are met. Proceeding."
+msgstr "Se cumplen los requisitos previos para la instalación. Proceder."

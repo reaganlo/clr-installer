@@ -523,3 +523,31 @@ msgstr "验证文件完整性"
 
 msgid "Downloading missing files"
 msgstr "下载丢失的文件"
+
+msgid "Checking system for compatibility"
+msgstr "检查系统的兼容性"
+
+#, c-format
+msgid "Exit and use %s to configure network."
+msgstr "退出并使用 %s 配置网络。"
+
+msgid "Installation in progress."
+msgstr "正在安装中。"
+
+msgid "Installation successful."
+msgstr "安装成功。"
+
+msgid "Exit."
+msgstr "出口。"
+
+msgid "Checking Prerequisites"
+msgstr "检查先决条件"
+
+msgid "Checking Prerequisites."
+msgstr "检查先决条件。"
+
+msgid "Prerequisites for installation are not met."
+msgstr "不满足安装的先决条件。"
+
+msgid "Prerequisites for installation are met. Proceeding."
+msgstr "满足安装的先决条件。诉讼。"
