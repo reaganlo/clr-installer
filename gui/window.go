@@ -255,8 +255,6 @@ func (window *Window) createPreCheckPage() (*Window, error) {
 	window.handle.ShowAll()
 	window.ActivatePage(window.menu.preCheckPage)
 
-	//window.buttons.exit.SetLabel(utils.Locale.Get("EXIT")) // This is done just to translate label based on localization
-
 	return window, nil
 }
 
@@ -586,7 +584,6 @@ func (window *Window) pageClosed(applied bool) {
 func (window *Window) ActivatePage(page pages.Page) {
 	window.menu.currentPage = page
 	id := page.GetID()
-
 	switch id {
 	case pages.PageIDWelcome:
 		window.banner.Show()
@@ -605,10 +602,10 @@ func (window *Window) ActivatePage(page pages.Page) {
 		window.buttons.install.Hide()
 		window.buttons.back.Hide()
 		sc, err := window.buttons.quit.GetStyleContext()
-		sc.RemoveClass("button-cancel")
 		if err != nil {
 			log.Warning("Error getting style context: ", err) // Just log trivial error
 		} else {
+			sc.RemoveClass("button-cancel")
 			sc.AddClass("button-confirm")
 		}
 		window.buttons.quit.SetSensitive(false)
@@ -618,58 +615,51 @@ func (window *Window) ActivatePage(page pages.Page) {
 		window.buttons.stack.SetVisibleChildName("secondary")
 		window.buttons.confirm.SetSensitive(false)
 	}
-
 	page.ResetChanges()                                // Allow page to take control now
 	window.rootStack.SetVisibleChild(window.pages[id]) // Set the root stack to show the new page
 }
 
 // SetButtonState is called by the pages to enable/disable certain buttons.
 func (window *Window) SetButtonState(flags pages.Button, enabled bool) {
-	if window.menu.currentPage.GetID() != pages.PageIDWelcome && window.menu.currentPage.GetID() != pages.PageIDPreCheck {
-		if flags&pages.ButtonCancel == pages.ButtonCancel {
-			window.buttons.cancel.SetSensitive(enabled)
-		}
-		if flags&pages.ButtonConfirm == pages.ButtonConfirm {
-			window.buttons.confirm.SetSensitive(enabled)
-		}
-		if flags&pages.ButtonQuit == pages.ButtonQuit {
-			window.buttons.quit.SetSensitive(enabled)
-		}
-		if flags&pages.ButtonBack == pages.ButtonBack {
-			window.buttons.back.SetSensitive(enabled)
-		}
-	} else {
-		if flags&pages.ButtonNext == pages.ButtonNext {
-			window.buttons.next.SetSensitive(enabled)
-		}
-		if flags&pages.ButtonExit == pages.ButtonExit {
-			window.buttons.exit.SetSensitive(enabled)
-		}
+	if flags&pages.ButtonCancel == pages.ButtonCancel {
+		window.buttons.cancel.SetSensitive(enabled)
+	}
+	if flags&pages.ButtonConfirm == pages.ButtonConfirm {
+		window.buttons.confirm.SetSensitive(enabled)
+	}
+	if flags&pages.ButtonQuit == pages.ButtonQuit {
+		window.buttons.quit.SetSensitive(enabled)
+	}
+	if flags&pages.ButtonBack == pages.ButtonBack {
+		window.buttons.back.SetSensitive(enabled)
+	}
+	if flags&pages.ButtonNext == pages.ButtonNext {
+		window.buttons.next.SetSensitive(enabled)
+	}
+	if flags&pages.ButtonExit == pages.ButtonExit {
+		window.buttons.exit.SetSensitive(enabled)
 	}
 }
 
 // SetButtonVisible is called by the pages to view/hide certain buttons.
 func (window *Window) SetButtonVisible(flags pages.Button, visible bool) {
-	if window.menu.currentPage.GetID() != pages.PageIDWelcome {
-		if flags&pages.ButtonCancel == pages.ButtonCancel {
-			window.buttons.cancel.SetVisible(visible)
-		}
-		if flags&pages.ButtonConfirm == pages.ButtonConfirm {
-			window.buttons.confirm.SetVisible(visible)
-		}
-		if flags&pages.ButtonQuit == pages.ButtonQuit {
-			window.buttons.quit.SetVisible(visible)
-		}
-		if flags&pages.ButtonBack == pages.ButtonBack {
-			window.buttons.back.SetVisible(visible)
-		}
-	} else {
-		if flags&pages.ButtonNext == pages.ButtonNext {
-			window.buttons.next.SetVisible(visible)
-		}
-		if flags&pages.ButtonExit == pages.ButtonExit {
-			window.buttons.exit.SetVisible(visible)
-		}
+	if flags&pages.ButtonCancel == pages.ButtonCancel {
+		window.buttons.cancel.SetVisible(visible)
+	}
+	if flags&pages.ButtonConfirm == pages.ButtonConfirm {
+		window.buttons.confirm.SetVisible(visible)
+	}
+	if flags&pages.ButtonQuit == pages.ButtonQuit {
+		window.buttons.quit.SetVisible(visible)
+	}
+	if flags&pages.ButtonBack == pages.ButtonBack {
+		window.buttons.back.SetVisible(visible)
+	}
+	if flags&pages.ButtonNext == pages.ButtonNext {
+		window.buttons.next.SetVisible(visible)
+	}
+	if flags&pages.ButtonExit == pages.ButtonExit {
+		window.buttons.exit.SetVisible(visible)
 	}
 }
 

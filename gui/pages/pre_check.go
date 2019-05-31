@@ -5,7 +5,6 @@
 package pages
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 
 	ctrl "github.com/clearlinux/clr-installer/controller"
 	"github.com/clearlinux/clr-installer/gui/common"
+	"github.com/clearlinux/clr-installer/log"
 	"github.com/clearlinux/clr-installer/model"
 	"github.com/clearlinux/clr-installer/progress"
 	"github.com/clearlinux/clr-installer/utils"
@@ -75,11 +75,14 @@ func NewPreCheckPage(controller Controller, model *model.SystemInstall) (Page, e
 	}
 	st.AddClass("scroller-main")
 
-	page.info, err = setLabel("", "label-warning", 0)
+	page.info, err = setLabel("", "label-info", 0)
 	if err != nil {
 		return nil, err
 	}
 	page.info.SetMarginStart(24)
+	page.info.SetMarginEnd(24)
+	page.info.SetMaxWidthChars(1) // The value does not matter but its required for LineWrap to work
+	page.info.SetLineWrap(true)
 	page.layout.PackStart(page.info, false, false, 0)
 
 	// Create progress bar
@@ -142,18 +145,31 @@ func (page *PreCheckPage) StoreChanges() {}
 
 // ResetChanges begins the pre-check
 func (page *PreCheckPage) ResetChanges() {
+	msg := utils.Locale.Get(utils.Locale.Get("Checking Prerequisites."))
+	msg = msg + " " + utils.Locale.Get("Please wait.")
+	page.info.SetText(msg)
+
 	go func() {
+		var success bool
 		progress.Set(page)
 		err := ctrl.PreCheck(page.model)
-		var success bool
 		if err != nil {
 			text := utils.Locale.Get("Prerequisites for installation are not met.")
-			text = text + " " + strings.Split(err.Error(), "\n")[0]
+			text = text + "\n" + strings.Split(err.Error(), "\n")[0]
 			page.info.SetText(text)
+			sc, err := page.info.GetStyleContext()
+			if err != nil {
+				log.Warning("Error getting style context: ", err) // Just log trivial error
+			} else {
+				sc.RemoveClass("label-info")
+				sc.AddClass("label-warning")
+			}
 			success = false
 		} else {
-			text := "<span foreground='white'>" + "Prerequisites for installation are met. Proceeding." + "</span>"
-			page.info.SetMarkup(text)
+			text := utils.Locale.Get("Prerequisites for installation are met. Proceeding.")
+			page.info.SetText(text)
+			// On success, disable exit button so that the user does not click it accidentally
+			page.controller.SetButtonState(ButtonExit, false)
 			success = true
 		}
 		page.pbar.SetFraction(1.0)
@@ -164,8 +180,6 @@ func (page *PreCheckPage) ResetChanges() {
 
 // Desc pushes a description box into the view for later marking
 func (page *PreCheckPage) Desc(desc string) {
-	fmt.Println(desc)
-
 	// Increment selection
 	page.selection++
 
@@ -193,12 +207,10 @@ func (page *PreCheckPage) Desc(desc string) {
 // Failure handles failure to install
 func (page *PreCheckPage) Failure() {
 	page.widgets[page.selection].MarkStatus(false)
-	utils.Locale.Get("Failure")
 }
 
 // Success notes the install was successful
 func (page *PreCheckPage) Success() {
-	utils.Locale.Get("Success")
 	page.widgets[page.selection].MarkStatus(true)
 }
 

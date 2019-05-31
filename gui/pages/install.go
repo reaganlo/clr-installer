@@ -13,6 +13,7 @@ import (
 
 	ctrl "github.com/clearlinux/clr-installer/controller"
 	"github.com/clearlinux/clr-installer/gui/common"
+	"github.com/clearlinux/clr-installer/log"
 	"github.com/clearlinux/clr-installer/model"
 	"github.com/clearlinux/clr-installer/network"
 	"github.com/clearlinux/clr-installer/progress"
@@ -32,7 +33,7 @@ type InstallPage struct {
 	scroll    *gtk.ScrolledWindow // Hold the list
 
 	widgets map[int]*InstallWidget // mapping of widgets
-	warning *gtk.Label             // Display errors during install
+	info    *gtk.Label             // Display errors during install
 }
 
 // NewInstallPage constructs a new InstallPage.
@@ -77,12 +78,15 @@ func NewInstallPage(controller Controller, model *model.SystemInstall) (Page, er
 	}
 	st.AddClass("scroller-main")
 
-	page.warning, err = setLabel("", "label-warning", 0)
+	page.info, err = setLabel("", "label-info", 0)
 	if err != nil {
 		return nil, err
 	}
-	page.warning.SetMarginStart(24)
-	page.layout.PackStart(page.warning, false, false, 0)
+	page.info.SetMarginStart(24)
+	page.info.SetMarginEnd(24)
+	page.info.SetMaxWidthChars(1) // The value does not matter but its required for LineWrap to work
+	page.info.SetLineWrap(true)
+	page.layout.PackStart(page.info, false, false, 0)
 
 	// Create progressbar
 	page.pbar, err = gtk.ProgressBarNew()
@@ -148,20 +152,22 @@ func (install *InstallPage) StoreChanges() {}
 
 // ResetChanges begins as our initial execution point as we're only going
 // to get called when showing our page.
-func (install *InstallPage) ResetChanges() {
+func (page *InstallPage) ResetChanges() {
+	msg := utils.Locale.Get(utils.Locale.Get("Installation in progress."))
+	msg = msg + " " + utils.Locale.Get("Please wait.")
+	page.info.SetText(msg)
+
 	// Validate the model
-	err := install.model.Validate()
+	err := page.model.Validate()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	utils.Locale.Get("Validation passed")
-
 	// TODO: Disable closing of the installer
 	go func() {
 		// Become the progress hook
-		progress.Set(install)
+		progress.Set(page)
 
 		go func() {
 			_ = network.DownloadInstallerMessage("Pre-Installation",
@@ -169,20 +175,29 @@ func (install *InstallPage) ResetChanges() {
 		}()
 
 		// Go install it
-		err := ctrl.Install(install.controller.GetRootDir(),
-			install.model,
-			install.controller.GetOptions(),
+		err := ctrl.Install(page.controller.GetRootDir(),
+			page.model,
+			page.controller.GetOptions(),
 		)
-		install.pbar.SetFraction(1.0)
+		page.pbar.SetFraction(1.0)
 
 		// Temporary handling of errors
 		if err != nil {
 			text := utils.Locale.Get("Installation failed.")
 			// TODO: Map errors => error codes => localized error messages.
 			// For the time being, get only the first line of the error.
-			text = text + " " + strings.Split(err.Error(), "\n")[0]
-			install.warning.SetText(text)
-			install.controller.SetButtonState(ButtonQuit, true)
+			text = text + "\n" + strings.Split(err.Error(), "\n")[0]
+			page.info.SetText(text)
+			sc, err := page.info.GetStyleContext()
+			if err != nil {
+				log.Warning("Error getting style context: ", err) // Just log trivial error
+			} else {
+				sc.RemoveClass("label-info")
+				sc.AddClass("label-warning")
+			}
+		} else {
+			text := utils.Locale.Get("Installation successful.") + " " + utils.Locale.Get("Exit.")
+			page.info.SetText(text)
 		}
 
 		go func() {
@@ -190,7 +205,7 @@ func (install *InstallPage) ResetChanges() {
 				network.PostGuiInstallConf)
 		}()
 
-		install.controller.SetButtonState(ButtonQuit, true)
+		page.controller.SetButtonState(ButtonQuit, true)
 	}()
 
 }
@@ -199,8 +214,6 @@ func (install *InstallPage) ResetChanges() {
 
 // Desc will push a description box into the view for later marking
 func (install *InstallPage) Desc(desc string) {
-	fmt.Println(desc)
-
 	// Increment selection
 	install.selection++
 
@@ -228,12 +241,10 @@ func (install *InstallPage) Desc(desc string) {
 // Failure handles failure to install
 func (install *InstallPage) Failure() {
 	install.widgets[install.selection].MarkStatus(false)
-	utils.Locale.Get("Failure")
 }
 
 // Success notes the install was successful
 func (install *InstallPage) Success() {
-	utils.Locale.Get("Success")
 	install.widgets[install.selection].MarkStatus(true)
 }
 
