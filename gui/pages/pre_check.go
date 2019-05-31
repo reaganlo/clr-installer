@@ -173,7 +173,7 @@ func (page *PreCheckPage) ResetChanges() {
 			success = true
 		}
 		page.pbar.SetFraction(1.0)
-		time.Sleep(common.LoopWaitDuration) // Wait for a while so that the user can read the message
+		time.Sleep(common.LoopWaitDuration * 25) // Wait for a while so that the user can read the message
 		page.controller.SetPreCheckChannel(success)
 	}()
 }
