@@ -2,6 +2,7 @@ package common
 
 import (
 	"github.com/gotk3/gotk3/gtk"
+	"time"
 
 	"github.com/clearlinux/clr-installer/log"
 )
@@ -15,6 +16,14 @@ const (
 
 	// ButtonSpacing is generic spacing between buttons
 	ButtonSpacing int = 4
+)
+
+var (
+	// LoopWaitDuration is a common loop wait duration used in pages
+	LoopWaitDuration = 200 * time.Millisecond
+
+	// LoopTimeOutDuration is a common loop timeout duration used in pages
+	LoopTimeOutDuration = 10000 * time.Millisecond // 10 seconds
 )
 
 // CreateDialog creates a gtk dialog with no buttons
