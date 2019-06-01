@@ -5,8 +5,9 @@
 package pages
 
 import (
-	"github.com/clearlinux/clr-installer/log"
 	"github.com/gotk3/gotk3/gtk"
+
+	"github.com/clearlinux/clr-installer/log"
 )
 
 // InstallWidget provides a description with tickes/crosses to let the user

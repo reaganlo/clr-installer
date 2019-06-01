@@ -481,8 +481,8 @@ msgstr "Disabled"
 msgid "Installation failed."
 msgstr "Installation failed."
 
-msgid "Network is not working."
-msgstr "Network is not working."
+msgid "Network connectivity failed."
+msgstr "Network connectivity failed."
 
 msgid "System failed to pass pre-install checks."
 msgstr "System failed to pass pre-install checks."
@@ -546,8 +546,5 @@ msgstr "Checking Prerequisites"
 msgid "Checking Prerequisites."
 msgstr "Checking Prerequisites."
 
-msgid "Prerequisites for installation are not met."
-msgstr "Prerequisites for installation are not met."
-
-msgid "Prerequisites for installation are met. Proceeding."
-msgstr "Prerequisites for installation are met. Proceeding."
+msgid "Prerequisites passed. Proceeding."
+msgstr "Prerequisites passed. Proceeding."

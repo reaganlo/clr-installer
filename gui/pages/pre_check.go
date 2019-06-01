@@ -154,8 +154,9 @@ func (page *PreCheckPage) ResetChanges() {
 		progress.Set(page)
 		err := ctrl.PreCheck(page.model)
 		if err != nil {
-			text := utils.Locale.Get("Prerequisites for installation are not met.")
-			text = text + "\n" + strings.Split(err.Error(), "\n")[0]
+			text := strings.Split(err.Error(), "\n")[0]
+			text = text + "\n" + utils.Locale.Get("Check %s for details.", page.controller.GetOptions().LogFile)
+			text = text + " " + utils.Locale.Get("Exit.")
 			page.info.SetText(text)
 			sc, err := page.info.GetStyleContext()
 			if err != nil {
@@ -166,14 +167,14 @@ func (page *PreCheckPage) ResetChanges() {
 			}
 			success = false
 		} else {
-			text := utils.Locale.Get("Prerequisites for installation are met. Proceeding.")
+			text := utils.Locale.Get("Prerequisites passed. Proceeding.")
 			page.info.SetText(text)
 			// On success, disable exit button so that the user does not click it accidentally
 			page.controller.SetButtonState(ButtonExit, false)
 			success = true
 		}
 		page.pbar.SetFraction(1.0)
-		time.Sleep(common.LoopWaitDuration * 25) // Wait for a while so that the user can read the message
+		time.Sleep(common.LoopWaitDuration * 15) // Wait for a while so that the user can read the message
 		page.controller.SetPreCheckChannel(success)
 	}()
 }

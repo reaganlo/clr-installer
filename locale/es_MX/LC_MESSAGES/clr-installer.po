@@ -481,8 +481,8 @@ msgstr "Desactivada"
 msgid "Installation failed."
 msgstr "Instalación fallida."
 
-msgid "Network is not working."
-msgstr "La red no está funcionando."
+msgid "Network connectivity failed."
+msgstr "La conectividad de la red falló."
 
 msgid "System failed to pass pre-install checks."
 msgstr "El sistema no pasó las comprobaciones previas a la instalación."
@@ -546,8 +546,5 @@ msgstr "Comprobación de requisitos previos"
 msgid "Checking Prerequisites."
 msgstr "Comprobación de requisitos previos."
 
-msgid "Prerequisites for installation are not met."
-msgstr "Los requisitos previos para la instalación no se cumplen."
-
-msgid "Prerequisites for installation are met. Proceeding."
-msgstr "Se cumplen los requisitos previos para la instalación. Proceder."
+msgid "Prerequisites passed. Proceeding."
+msgstr "Requisitos previos aprobados. Proceder."

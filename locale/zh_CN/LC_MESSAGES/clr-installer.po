@@ -481,8 +481,8 @@ msgstr "已禁用"
 msgid "Installation failed."
 msgstr "安装失败。"
 
-msgid "Network is not working."
-msgstr "网络无法正常工作。"
+msgid "Network connectivity failed."
+msgstr "网络连接失败。"
 
 msgid "System failed to pass pre-install checks."
 msgstr "系统无法通过安装前检查。"
@@ -546,8 +546,5 @@ msgstr "检查先决条件"
 msgid "Checking Prerequisites."
 msgstr "检查先决条件。"
 
-msgid "Prerequisites for installation are not met."
-msgstr "不满足安装的先决条件。"
-
-msgid "Prerequisites for installation are met. Proceeding."
-msgstr "满足安装的先决条件。诉讼。"
+msgid "Prerequisites passed. Proceeding."
+msgstr "先决条件已通过。诉讼。"

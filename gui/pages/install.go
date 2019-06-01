@@ -33,7 +33,7 @@ type InstallPage struct {
 	scroll    *gtk.ScrolledWindow // Hold the list
 
 	widgets map[int]*InstallWidget // mapping of widgets
-	info    *gtk.Label             // Display errors during install
+	info    *gtk.Label             // Display info during install
 }
 
 // NewInstallPage constructs a new InstallPage.
@@ -179,7 +179,6 @@ func (page *InstallPage) ResetChanges() {
 			page.model,
 			page.controller.GetOptions(),
 		)
-		page.pbar.SetFraction(1.0)
 
 		// Temporary handling of errors
 		if err != nil {
@@ -187,6 +186,8 @@ func (page *InstallPage) ResetChanges() {
 			// TODO: Map errors => error codes => localized error messages.
 			// For the time being, get only the first line of the error.
 			text = text + "\n" + strings.Split(err.Error(), "\n")[0]
+			text = text + "\n" + utils.Locale.Get("Check %s for details.", page.controller.GetOptions().LogFile)
+			text = text + " " + utils.Locale.Get("Exit.")
 			page.info.SetText(text)
 			sc, err := page.info.GetStyleContext()
 			if err != nil {
@@ -199,6 +200,7 @@ func (page *InstallPage) ResetChanges() {
 			text := utils.Locale.Get("Installation successful.") + " " + utils.Locale.Get("Exit.")
 			page.info.SetText(text)
 		}
+		page.pbar.SetFraction(1.0)
 
 		go func() {
 			_ = network.DownloadInstallerMessage("Post-Installation",

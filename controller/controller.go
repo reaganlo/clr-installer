@@ -234,6 +234,7 @@ func Install(rootDir string, model *model.SystemInstall, options args.Args) erro
 					prg = progress.NewLoop(msg)
 					log.Info(msg)
 					if err = ch.MapEncrypted(model.CryptPass); err != nil {
+						prg.Failure()
 						return err
 					}
 					prg.Success()
@@ -254,6 +255,7 @@ func Install(rootDir string, model *model.SystemInstall, options args.Args) erro
 			prg = progress.NewLoop(msg)
 			log.Info(msg)
 			if err = ch.MakeFs(); err != nil {
+				prg.Failure()
 				return err
 			}
 			prg.Success()
@@ -341,6 +343,7 @@ func Install(rootDir string, model *model.SystemInstall, options args.Args) erro
 	prg = progress.NewLoop(msg)
 	log.Info(msg)
 	if err = storage.GenerateTabFiles(rootDir, model.TargetMedias); err != nil {
+		prg.Failure()
 		return err
 	}
 	prg.Success()
@@ -516,6 +519,7 @@ func contentInstall(rootDir string, version string, model *model.SystemInstall, 
 		if err := sw.DisableUpdate(); err != nil {
 			warnMsg := utils.Locale.Get("Disabling automatic updates failed")
 			log.Warning(warnMsg)
+			prg.Failure()
 			return prg, err
 		}
 		prg.Success()
@@ -532,6 +536,7 @@ func contentInstall(rootDir string, version string, model *model.SystemInstall, 
 
 	err := cmd.RunAndLog(args...)
 	if err != nil {
+		prg.Failure()
 		return prg, errors.Wrap(err)
 	}
 	prg.Success()
@@ -552,15 +557,17 @@ func contentInstall(rootDir string, version string, model *model.SystemInstall, 
 
 // ConfigureNetwork applies the model/configured network interfaces
 func ConfigureNetwork(model *model.SystemInstall) error {
-	var err error
-	_, err = configureNetwork(model)
+	_, err := configureNetwork(model)
 	if err != nil {
 		NetworkPassing = false
-	} else {
-		NetworkPassing = true
+		msg := utils.Locale.Get("Network connectivity failed.")
+		msg = msg + " " + utils.Locale.Get("Use %s to configure network.", NetWorkManager)
+		err = errors.Errorf(msg)
+		return err
 	}
 
-	return err
+	NetworkPassing = true
+	return nil
 }
 
 // SystemCheck checks if the system is compatible for installing
@@ -569,6 +576,8 @@ func SystemCheck() error {
 	prg := progress.NewLoop(msg)
 	if err := syscheck.RunSystemCheck(true); err != nil {
 		prg.Failure()
+		msg := utils.Locale.Get("System not compatible.")
+		err = errors.Errorf(msg)
 		return err
 	}
 	prg.Success()
@@ -584,6 +593,7 @@ func configureNetwork(model *model.SystemInstall) (progress.Progress, error) {
 		prg := progress.NewLoop(msg)
 		log.Info(msg)
 		if err = network.Apply("/", model.NetworkInterfaces); err != nil {
+			prg.Failure()
 			return prg, err
 		}
 		prg.Success()
@@ -592,6 +602,7 @@ func configureNetwork(model *model.SystemInstall) (progress.Progress, error) {
 		prg = progress.NewLoop(msg)
 		log.Info(msg)
 		if err = network.Restart(); err != nil {
+			prg.Failure()
 			return prg, err
 		}
 		prg.Success()
@@ -623,13 +634,11 @@ func configureNetwork(model *model.SystemInstall) (progress.Progress, error) {
 
 	if !ok {
 		prg.Failure()
-		msg := utils.Locale.Get("Network is not working.")
-		msg = msg + " " + utils.Locale.Get("Exit and use %s to configure network.", NetWorkManager)
-		err = errors.Errorf(msg)
-	} else {
-		prg.Success()
+		err = errors.Errorf("Network connectivity failed.")
+		return prg, err
 	}
 
+	prg.Success()
 	return prg, err
 }
 
