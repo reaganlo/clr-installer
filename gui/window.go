@@ -360,14 +360,14 @@ func (window *Window) AddPage(page pages.Page) error {
 	)
 
 	id = page.GetID()
-
-	if id == pages.PageIDWelcome {
+	switch id {
+	case pages.PageIDWelcome:
 		window.menu.welcomePage = page
-	} else if id == pages.PageIDPreCheck {
+	case pages.PageIDPreCheck:
 		window.menu.preCheckPage = page
-	} else if id == pages.PageIDInstall {
+	case pages.PageIDInstall:
 		window.menu.installPage = page
-	} else { // Add to the required or advanced (optional) screen
+	default: // Add to the required or advanced (optional) screen
 		err := window.menu.screens[page.IsRequired()].AddPage(page)
 		if err != nil {
 			return err
