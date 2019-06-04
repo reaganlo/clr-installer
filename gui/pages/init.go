@@ -70,6 +70,9 @@ type Controller interface {
 	SetScanDone(bool)
 	GetScanMedia() []*storage.BlockDevice
 	SetScanMedia([]*storage.BlockDevice)
+
+	// Getters and Setters for PreCheckInfo
+	SetPreCheckChannel(bool)
 }
 
 // ScanInfo holds the information related to scanning the media
@@ -79,9 +82,18 @@ type ScanInfo struct {
 	Media   []*storage.BlockDevice // Scanned media
 }
 
+// PreCheckInfo holds the information related to installation pre-check
+type PreCheckInfo struct {
+	Channel chan bool // Bool channel for pre-check
+	Done    bool      // Used to check if pre-check has been done at least once
+}
+
 const (
 	// PageIDWelcome is the language page key
 	PageIDWelcome = iota
+
+	// PageIDPreCheck is the pre-check page key
+	PageIDPreCheck = iota
 
 	// PageIDTimezone is the timezone page key
 	PageIDTimezone = iota

@@ -29,6 +29,7 @@ import (
 	"github.com/clearlinux/clr-installer/progress"
 	"github.com/clearlinux/clr-installer/storage"
 	"github.com/clearlinux/clr-installer/swupd"
+	"github.com/clearlinux/clr-installer/syscheck"
 	"github.com/clearlinux/clr-installer/telemetry"
 	"github.com/clearlinux/clr-installer/timezone"
 	cuser "github.com/clearlinux/clr-installer/user"
@@ -41,12 +42,30 @@ var (
 	NetworkPassing bool
 )
 
+const (
+	// NetWorkManager is the application to manage network.
+	NetWorkManager = "Network Manager"
+)
+
 func sortMountPoint(bds []*storage.BlockDevice) []*storage.BlockDevice {
 	sort.Slice(bds[:], func(i, j int) bool {
 		return filepath.HasPrefix(bds[j].MountPoint, bds[i].MountPoint)
 	})
 
 	return bds
+}
+
+// PreCheck is the main pre-check controller.
+func PreCheck(model *model.SystemInstall) error {
+	if err := SystemCheck(); err != nil {
+		return err
+	}
+
+	if err := ConfigureNetwork(model); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Install is the main install controller, this is the entry point for a full
@@ -215,6 +234,7 @@ func Install(rootDir string, model *model.SystemInstall, options args.Args) erro
 					prg = progress.NewLoop(msg)
 					log.Info(msg)
 					if err = ch.MapEncrypted(model.CryptPass); err != nil {
+						prg.Failure()
 						return err
 					}
 					prg.Success()
@@ -235,6 +255,7 @@ func Install(rootDir string, model *model.SystemInstall, options args.Args) erro
 			prg = progress.NewLoop(msg)
 			log.Info(msg)
 			if err = ch.MakeFs(); err != nil {
+				prg.Failure()
 				return err
 			}
 			prg.Success()
@@ -322,6 +343,7 @@ func Install(rootDir string, model *model.SystemInstall, options args.Args) erro
 	prg = progress.NewLoop(msg)
 	log.Info(msg)
 	if err = storage.GenerateTabFiles(rootDir, model.TargetMedias); err != nil {
+		prg.Failure()
 		return err
 	}
 	prg.Success()
@@ -497,6 +519,7 @@ func contentInstall(rootDir string, version string, model *model.SystemInstall, 
 		if err := sw.DisableUpdate(); err != nil {
 			warnMsg := utils.Locale.Get("Disabling automatic updates failed")
 			log.Warning(warnMsg)
+			prg.Failure()
 			return prg, err
 		}
 		prg.Success()
@@ -513,6 +536,7 @@ func contentInstall(rootDir string, version string, model *model.SystemInstall, 
 
 	err := cmd.RunAndLog(args...)
 	if err != nil {
+		prg.Failure()
 		return prg, errors.Wrap(err)
 	}
 	prg.Success()
@@ -533,26 +557,43 @@ func contentInstall(rootDir string, version string, model *model.SystemInstall, 
 
 // ConfigureNetwork applies the model/configured network interfaces
 func ConfigureNetwork(model *model.SystemInstall) error {
-	prg, err := configureNetwork(model)
+	_, err := configureNetwork(model)
 	if err != nil {
-		prg.Success()
 		NetworkPassing = false
+		msg := utils.Locale.Get("Network connectivity failed.")
+		msg = msg + " " + utils.Locale.Get("Use %s to configure network.", NetWorkManager)
+		err = errors.Errorf(msg)
 		return err
 	}
 
 	NetworkPassing = true
+	return nil
+}
 
+// SystemCheck checks if the system is compatible for installing
+func SystemCheck() error {
+	msg := utils.Locale.Get("Checking system for compatibility")
+	prg := progress.NewLoop(msg)
+	if err := syscheck.RunSystemCheck(true); err != nil {
+		prg.Failure()
+		msg := utils.Locale.Get("System not compatible.")
+		err = errors.Errorf(msg)
+		return err
+	}
+	prg.Success()
 	return nil
 }
 
 func configureNetwork(model *model.SystemInstall) (progress.Progress, error) {
+	var err error
 	cmd.SetHTTPSProxy(model.HTTPSProxy)
 
 	if len(model.NetworkInterfaces) > 0 {
 		msg := "Applying network settings"
 		prg := progress.NewLoop(msg)
 		log.Info(msg)
-		if err := network.Apply("/", model.NetworkInterfaces); err != nil {
+		if err = network.Apply("/", model.NetworkInterfaces); err != nil {
+			prg.Failure()
 			return prg, err
 		}
 		prg.Success()
@@ -560,7 +601,8 @@ func configureNetwork(model *model.SystemInstall) (progress.Progress, error) {
 		msg = utils.Locale.Get("Restarting network interfaces")
 		prg = progress.NewLoop(msg)
 		log.Info(msg)
-		if err := network.Restart(); err != nil {
+		if err = network.Restart(); err != nil {
+			prg.Failure()
 			return prg, err
 		}
 		prg.Success()
@@ -575,7 +617,7 @@ func configureNetwork(model *model.SystemInstall) (progress.Progress, error) {
 		time.Sleep(2 * time.Second)
 
 		log.Info(msg)
-		if err := network.VerifyConnectivity(); err == nil {
+		if err := network.VerifyConnectivity(); err == nil { // Network Verification successful
 			ok = true
 			break
 		}
@@ -583,7 +625,7 @@ func configureNetwork(model *model.SystemInstall) (progress.Progress, error) {
 
 		// Restart networking if we failed
 		// The likely gain is restarting pacdiscovery to fix autoproxy
-		if err := network.Restart(); err != nil {
+		if err = network.Restart(); err != nil {
 			log.Warning("Network restart failed")
 			ok = false
 			break
@@ -591,12 +633,13 @@ func configureNetwork(model *model.SystemInstall) (progress.Progress, error) {
 	}
 
 	if !ok {
-		return prg, errors.Errorf(utils.Locale.Get("Network is not working."))
+		prg.Failure()
+		err = errors.Errorf("Network connectivity failed.")
+		return prg, err
 	}
 
 	prg.Success()
-
-	return nil, nil
+	return prg, err
 }
 
 // configureTimezone applies the model/configured Timezone to the target
@@ -653,7 +696,6 @@ func configureLanguage(rootDir string, model *model.SystemInstall) error {
 	log.Info(msg)
 
 	err := language.SetTargetLanguage(rootDir, model.Language.Code)
-	//utils.SetLocale(model.Language.Code)
 	if err != nil {
 		prg.Failure()
 		return err

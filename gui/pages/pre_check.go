@@ -5,7 +5,6 @@
 package pages
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -15,14 +14,12 @@ import (
 	"github.com/clearlinux/clr-installer/gui/common"
 	"github.com/clearlinux/clr-installer/log"
 	"github.com/clearlinux/clr-installer/model"
-	"github.com/clearlinux/clr-installer/network"
 	"github.com/clearlinux/clr-installer/progress"
 	"github.com/clearlinux/clr-installer/utils"
 )
 
-// InstallPage is a specialised page type with no corresponding
-// ContentView summary. It handles the actual install routine.
-type InstallPage struct {
+// PreCheckPage is a specialised page type with no corresponding ContentView summary. It handles the pre-check routine.
+type PreCheckPage struct {
 	controller Controller
 	model      *model.SystemInstall
 	layout     *gtk.Box
@@ -32,16 +29,16 @@ type InstallPage struct {
 	selection int                 // Current progress selection
 	scroll    *gtk.ScrolledWindow // Hold the list
 
-	widgets map[int]*InstallWidget // mapping of widgets
-	info    *gtk.Label             // Display info during install
+	widgets map[int]*InstallWidget // Mapping of widgets
+	info    *gtk.Label             // Display info during pre-check
 }
 
-// NewInstallPage constructs a new InstallPage.
-func NewInstallPage(controller Controller, model *model.SystemInstall) (Page, error) {
+// NewPreCheckPage constructs a new PreCheckPage.
+func NewPreCheckPage(controller Controller, model *model.SystemInstall) (Page, error) {
 	var err error
 
 	// Create page
-	page := &InstallPage{
+	page := &PreCheckPage{
 		controller: controller,
 		model:      model,
 		widgets:    make(map[int]*InstallWidget),
@@ -89,104 +86,76 @@ func NewInstallPage(controller Controller, model *model.SystemInstall) (Page, er
 	page.info.SetSelectable(true)
 	page.layout.PackStart(page.info, false, false, 0)
 
-	// Create progressbar
+	// Create progress bar
 	page.pbar, err = gtk.ProgressBarNew()
 	if err != nil {
 		return nil, err
 	}
-
-	// Sort out padding
 	page.pbar.SetHAlign(gtk.ALIGN_FILL)
 	page.pbar.SetMarginStart(24)
 	page.pbar.SetMarginEnd(24)
 	page.pbar.SetMarginBottom(12)
 	page.pbar.SetMarginTop(12)
-
-	// Throw it on the bottom of the page
 	page.layout.PackEnd(page.pbar, false, false, 0)
 
 	return page, nil
 }
 
 // IsRequired is just here for the Page API
-func (page *InstallPage) IsRequired() bool {
+func (page *PreCheckPage) IsRequired() bool {
 	return true
 }
 
 // IsDone is just here for the Page API
-func (page *InstallPage) IsDone() bool {
+func (page *PreCheckPage) IsDone() bool {
 	return false
 }
 
 // GetID returns the ID for this page
-func (page *InstallPage) GetID() int {
-	return PageIDInstall
+func (page *PreCheckPage) GetID() int {
+	return PageIDPreCheck
 }
 
-// GetSummary will return the summary for this page
-func (page *InstallPage) GetSummary() string {
-	return utils.Locale.Get("Installing Clear Linux* OS")
+// GetSummary returns the summary for this page
+func (page *PreCheckPage) GetSummary() string {
+	return page.GetTitle()
 }
 
-// GetTitle will return the title for this page
-func (page *InstallPage) GetTitle() string {
-	return utils.Locale.Get("Installing Clear Linux* OS")
+// GetTitle returns the title for this page
+func (page *PreCheckPage) GetTitle() string {
+	return utils.Locale.Get("Checking Prerequisites")
 }
 
 // GetIcon returns the icon for this page
-func (page *InstallPage) GetIcon() string {
-	return "system-software-install-symbolic"
+func (page *PreCheckPage) GetIcon() string {
+	return "emblem-system-symbolic"
 }
 
 // GetConfiguredValue returns nothing here
-func (page *InstallPage) GetConfiguredValue() string {
+func (page *PreCheckPage) GetConfiguredValue() string {
 	return ""
 }
 
 // GetRootWidget returns the root embeddable widget for this page
-func (page *InstallPage) GetRootWidget() gtk.IWidget {
+func (page *PreCheckPage) GetRootWidget() gtk.IWidget {
 	return page.layout
 }
 
-// StoreChanges will store this pages changes into the model
-func (page *InstallPage) StoreChanges() {}
+// StoreChanges is just here for the Page API
+func (page *PreCheckPage) StoreChanges() {}
 
-// ResetChanges begins as our initial execution point as we're only going
-// to get called when showing our page.
-func (page *InstallPage) ResetChanges() {
-	msg := utils.Locale.Get("Installation in progress.")
+// ResetChanges begins the pre-check
+func (page *PreCheckPage) ResetChanges() {
+	msg := utils.Locale.Get("Checking Prerequisites.")
 	msg = msg + " " + utils.Locale.Get("Please wait.")
 	page.info.SetText(msg)
 
-	// Validate the model
-	err := page.model.Validate()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// TODO: Disable closing of the installer
 	go func() {
-		// Become the progress hook
+		var success bool
 		progress.Set(page)
-
-		go func() {
-			_ = network.DownloadInstallerMessage("Pre-Installation",
-				network.PreGuiInstallConf)
-		}()
-
-		// Go install it
-		err := ctrl.Install(page.controller.GetRootDir(),
-			page.model,
-			page.controller.GetOptions(),
-		)
-
-		// Temporary handling of errors
+		err := ctrl.PreCheck(page.model)
 		if err != nil {
-			text := utils.Locale.Get("Installation failed.")
-			// TODO: Map errors => error codes => localized error messages.
-			// For the time being, get only the first line of the error.
-			text = text + "\n" + strings.Split(err.Error(), "\n")[0]
+			text := strings.Split(err.Error(), "\n")[0]
 			text = text + "\n" + utils.Locale.Get("Check %s for details.", page.controller.GetOptions().LogFile)
 			text = text + " " + utils.Locale.Get("Exit.")
 			page.info.SetText(text)
@@ -197,26 +166,22 @@ func (page *InstallPage) ResetChanges() {
 				sc.RemoveClass("label-info")
 				sc.AddClass("label-warning")
 			}
+			success = false
 		} else {
-			text := utils.Locale.Get("Installation successful.") + " " + utils.Locale.Get("Exit.")
+			text := utils.Locale.Get("Prerequisites passed. Proceeding.")
 			page.info.SetText(text)
+			// On success, disable exit button so that the user does not click it accidentally
+			page.controller.SetButtonState(ButtonExit, false)
+			success = true
 		}
 		page.pbar.SetFraction(1.0)
-
-		go func() {
-			_ = network.DownloadInstallerMessage("Post-Installation",
-				network.PostGuiInstallConf)
-		}()
-
-		page.controller.SetButtonState(ButtonQuit, true)
+		time.Sleep(common.LoopWaitDuration * 15) // Wait for a while so that the user can read the message
+		page.controller.SetPreCheckChannel(success)
 	}()
-
 }
 
-// Following methods are for the progress.Client API
-
-// Desc will push a description box into the view for later marking
-func (page *InstallPage) Desc(desc string) {
+// Desc pushes a description box into the view for later marking
+func (page *PreCheckPage) Desc(desc string) {
 	// Increment selection
 	page.selection++
 
@@ -242,27 +207,27 @@ func (page *InstallPage) Desc(desc string) {
 }
 
 // Failure handles failure to install
-func (page *InstallPage) Failure() {
+func (page *PreCheckPage) Failure() {
 	page.widgets[page.selection].MarkStatus(false)
 }
 
 // Success notes the install was successful
-func (page *InstallPage) Success() {
+func (page *PreCheckPage) Success() {
 	page.widgets[page.selection].MarkStatus(true)
 }
 
 // LoopWaitDuration will return the duration for step-waits
-func (page *InstallPage) LoopWaitDuration() time.Duration {
+func (page *PreCheckPage) LoopWaitDuration() time.Duration {
 	return common.LoopWaitDuration
 }
 
 // Partial handles an actual progress update
-func (page *InstallPage) Partial(total int, step int) {
+func (page *PreCheckPage) Partial(total int, step int) {
 	page.pbar.SetFraction(float64(step) / float64(total))
 }
 
 // Step will step the progressbar in indeterminate mode
-func (page *InstallPage) Step() {
+func (page *PreCheckPage) Step() {
 	// Pulse twice for visual feedback
 	page.pbar.Pulse()
 	page.pbar.Pulse()

@@ -6,6 +6,7 @@ package gui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/gotk3/gotk3/gtk"
 
@@ -45,12 +46,13 @@ type Window struct {
 
 	// Menu
 	menu struct {
-		switcher    *Switcher             // Allow switching between main menu
-		stack       *gtk.Stack            // Menu switching
-		screens     map[bool]*ContentView // Mapping to content views
-		welcomePage pages.Page            // Pointer to the welcome page
-		currentPage pages.Page            // Pointer to the currently open page
-		installPage pages.Page            // Pointer to the installer page
+		switcher     *Switcher             // Allow switching between main menu
+		stack        *gtk.Stack            // Menu switching
+		screens      map[bool]*ContentView // Mapping to content views
+		welcomePage  pages.Page            // Pointer to the welcome page
+		preCheckPage pages.Page            // Pointer to the pre-check page
+		currentPage  pages.Page            // Pointer to the currently open page
+		installPage  pages.Page            // Pointer to the installer page
 	}
 
 	// Buttons
@@ -74,9 +76,10 @@ type Window struct {
 		cancel  *gtk.Button // Cancel changes
 	}
 
-	didInit  bool                // Whether initialized the view animation
-	pages    map[int]gtk.IWidget // Mapping to each root page
-	scanInfo pages.ScanInfo      // Information related to scanning the media
+	didInit      bool                // Whether initialized the view animation
+	pages        map[int]gtk.IWidget // Mapping to each root page
+	scanInfo     pages.ScanInfo      // Information related to scanning the media
+	preCheckInfo pages.PreCheckInfo  // Information related to installation pre-check
 }
 
 // CreateHeaderBar creates invisible header bar
@@ -225,6 +228,36 @@ func (window *Window) createWelcomePage() (*Window, error) {
 	return window, nil
 }
 
+// createPreCheckPage creates the pre-check page
+func (window *Window) createPreCheckPage() (*Window, error) {
+	window.banner.labelText.SetMarkup(GetWelcomeMessage())
+
+	window.contentLayout.Remove(window.rootStack)
+	window.contentLayout.PackStart(window.rootStack, true, true, 0)
+
+	// Our pages
+	pageCreators := []PageConstructor{
+		// required
+		pages.NewPreCheckPage,
+	}
+
+	for _, f := range pageCreators {
+		page, err := f(window, window.model)
+		if err != nil {
+			return nil, err
+		}
+		if err = window.AddPage(page); err != nil {
+			return nil, err
+		}
+	}
+
+	// Show the whole window now
+	window.handle.ShowAll()
+	window.ActivatePage(window.menu.preCheckPage)
+
+	return window, nil
+}
+
 // createMenuPages creates the menu pages
 func (window *Window) createMenuPages() (*Window, error) {
 	var err error
@@ -250,7 +283,7 @@ func (window *Window) createMenuPages() (*Window, error) {
 		return nil, err
 	}
 
-	// Our pages
+	// Create rest of the pages
 	pageCreators := []PageConstructor{
 		// required
 		pages.NewTimezonePage,
@@ -327,12 +360,14 @@ func (window *Window) AddPage(page pages.Page) error {
 	)
 
 	id = page.GetID()
-
-	if id == pages.PageIDWelcome {
+	switch id {
+	case pages.PageIDWelcome:
 		window.menu.welcomePage = page
-	} else if id == pages.PageIDInstall {
+	case pages.PageIDPreCheck:
+		window.menu.preCheckPage = page
+	case pages.PageIDInstall:
 		window.menu.installPage = page
-	} else { // Add to the required or advanced (optional) screen
+	default: // Add to the required or advanced (optional) screen
 		err := window.menu.screens[page.IsRequired()].AddPage(page)
 		if err != nil {
 			return err
@@ -397,7 +432,7 @@ func (window *Window) CreateFooter(store *gtk.Box) error {
 	if window.buttons.next, err = createNavButton(utils.Locale.Get("NEXT"), "button-confirm"); err != nil {
 		return err
 	}
-	if _, err = window.buttons.next.Connect("clicked", func() { window.launchMenuView() }); err != nil {
+	if _, err = window.buttons.next.Connect("clicked", func() { window.pageNext() }); err != nil {
 		return err
 	}
 
@@ -489,6 +524,35 @@ func (window *Window) UpdateFooter(store *gtk.Box) error {
 	return nil
 }
 
+// pageNext handles next page.
+func (window *Window) pageNext() {
+	if !window.preCheckInfo.Done { // If pre-check has not been done at least once, launch the pre-check view first
+		window.preCheckInfo.Channel = make(chan bool)
+		go func() {
+			var duration time.Duration
+			for {
+				select {
+				case <-window.preCheckInfo.Channel:
+					window.preCheckInfo.Done = true
+					window.launchMenuView()
+					return
+				default:
+					time.Sleep(common.LoopWaitDuration)
+					duration += common.LoopWaitDuration
+					// Safety check. In case reading the channel gets delayed for some reason,
+					// do not hold up loading the page.
+					if duration > common.LoopTimeOutDuration {
+						return
+					}
+				}
+			}
+		}()
+		window.launchPreCheckView()
+	} else {
+		window.launchMenuView()
+	}
+}
+
 // pageClosed handles closure of a page.
 func (window *Window) pageClosed(applied bool) {
 	// If applied, tell page to stash in model
@@ -520,11 +584,17 @@ func (window *Window) pageClosed(applied bool) {
 func (window *Window) ActivatePage(page pages.Page) {
 	window.menu.currentPage = page
 	id := page.GetID()
-
-	if id == pages.PageIDWelcome { // Welcome Page
+	switch id {
+	case pages.PageIDWelcome:
 		window.banner.Show()
 		window.buttons.stack.SetVisibleChildName("welcome")
-	} else if id == pages.PageIDInstall { // Install Page
+	case pages.PageIDPreCheck:
+		window.banner.Show()
+		window.buttons.stack.SetVisibleChildName("welcome")
+		window.buttons.next.Hide()
+		window.buttons.exit.SetLabel(utils.Locale.Get("EXIT")) // This is done just to translate label based on localization
+		window.buttons.exit.SetSensitive(true)
+	case pages.PageIDInstall:
 		window.menu.switcher.Hide()
 		window.banner.Show()
 		window.banner.labelText.SetMarkup(GetThankYouMessage())
@@ -532,74 +602,64 @@ func (window *Window) ActivatePage(page pages.Page) {
 		window.buttons.install.Hide()
 		window.buttons.back.Hide()
 		sc, err := window.buttons.quit.GetStyleContext()
-		sc.RemoveClass("button-cancel")
 		if err != nil {
 			log.Warning("Error getting style context: ", err) // Just log trivial error
 		} else {
+			sc.RemoveClass("button-cancel")
 			sc.AddClass("button-confirm")
 		}
-		window.SetButtonState(pages.ButtonQuit, false)
-	} else {
+		window.buttons.quit.SetSensitive(false)
+	default:
 		window.menu.switcher.Hide()
 		window.banner.Hide()
 		window.buttons.stack.SetVisibleChildName("secondary")
-		window.SetButtonState(pages.ButtonConfirm, false)
+		window.buttons.confirm.SetSensitive(false)
 	}
-
-	// Allow page to take control now
-	page.ResetChanges()
-
-	// Set the root stack to show the new page
-	window.rootStack.SetVisibleChild(window.pages[id])
+	page.ResetChanges()                                // Allow page to take control now
+	window.rootStack.SetVisibleChild(window.pages[id]) // Set the root stack to show the new page
 }
 
 // SetButtonState is called by the pages to enable/disable certain buttons.
 func (window *Window) SetButtonState(flags pages.Button, enabled bool) {
-	if window.menu.currentPage.GetID() != pages.PageIDWelcome {
-		if flags&pages.ButtonCancel == pages.ButtonCancel {
-			window.buttons.cancel.SetSensitive(enabled)
-		}
-		if flags&pages.ButtonConfirm == pages.ButtonConfirm {
-			window.buttons.confirm.SetSensitive(enabled)
-		}
-		if flags&pages.ButtonQuit == pages.ButtonQuit {
-			window.buttons.quit.SetSensitive(enabled)
-		}
-		if flags&pages.ButtonBack == pages.ButtonBack {
-			window.buttons.back.SetSensitive(enabled)
-		}
-	} else {
-		if flags&pages.ButtonNext == pages.ButtonNext {
-			window.buttons.next.SetSensitive(enabled)
-		}
-		if flags&pages.ButtonExit == pages.ButtonExit {
-			window.buttons.exit.SetSensitive(enabled)
-		}
+	if flags&pages.ButtonCancel == pages.ButtonCancel {
+		window.buttons.cancel.SetSensitive(enabled)
+	}
+	if flags&pages.ButtonConfirm == pages.ButtonConfirm {
+		window.buttons.confirm.SetSensitive(enabled)
+	}
+	if flags&pages.ButtonQuit == pages.ButtonQuit {
+		window.buttons.quit.SetSensitive(enabled)
+	}
+	if flags&pages.ButtonBack == pages.ButtonBack {
+		window.buttons.back.SetSensitive(enabled)
+	}
+	if flags&pages.ButtonNext == pages.ButtonNext {
+		window.buttons.next.SetSensitive(enabled)
+	}
+	if flags&pages.ButtonExit == pages.ButtonExit {
+		window.buttons.exit.SetSensitive(enabled)
 	}
 }
 
 // SetButtonVisible is called by the pages to view/hide certain buttons.
 func (window *Window) SetButtonVisible(flags pages.Button, visible bool) {
-	if window.menu.currentPage.GetID() != pages.PageIDWelcome {
-		if flags&pages.ButtonCancel == pages.ButtonCancel {
-			window.buttons.cancel.SetVisible(visible)
-		}
-		if flags&pages.ButtonConfirm == pages.ButtonConfirm {
-			window.buttons.confirm.SetVisible(visible)
-		}
-		if flags&pages.ButtonQuit == pages.ButtonQuit {
-			window.buttons.quit.SetVisible(visible)
-		}
-		if flags&pages.ButtonBack == pages.ButtonBack {
-			window.buttons.back.SetVisible(visible)
-		}
-	} else {
-		if flags&pages.ButtonNext == pages.ButtonNext {
-			window.buttons.next.SetVisible(visible)
-		}
-		if flags&pages.ButtonExit == pages.ButtonExit {
-			window.buttons.exit.SetVisible(visible)
-		}
+	if flags&pages.ButtonCancel == pages.ButtonCancel {
+		window.buttons.cancel.SetVisible(visible)
+	}
+	if flags&pages.ButtonConfirm == pages.ButtonConfirm {
+		window.buttons.confirm.SetVisible(visible)
+	}
+	if flags&pages.ButtonQuit == pages.ButtonQuit {
+		window.buttons.quit.SetVisible(visible)
+	}
+	if flags&pages.ButtonBack == pages.ButtonBack {
+		window.buttons.back.SetVisible(visible)
+	}
+	if flags&pages.ButtonNext == pages.ButtonNext {
+		window.buttons.next.SetVisible(visible)
+	}
+	if flags&pages.ButtonExit == pages.ButtonExit {
+		window.buttons.exit.SetVisible(visible)
 	}
 }
 
@@ -612,8 +672,19 @@ func (window *Window) launchWelcomeView() {
 	}
 }
 
+// launchPreCheckView launches the pre-check view view
+func (window *Window) launchPreCheckView() {
+	log.Debug("Launching PreCheckView")
+	window.menu.currentPage.StoreChanges()
+
+	if _, err := window.createPreCheckPage(); err != nil {
+		log.ErrorError(err) // TODO: Handle error
+	}
+}
+
 // launchMenuView launches the menu view
 func (window *Window) launchMenuView() {
+	log.Debug("Launching MenuView")
 	window.menu.currentPage.StoreChanges()
 
 	// If syscheck fails, launch a dialog box and force the user to exit
@@ -774,6 +845,11 @@ func (window *Window) GetScanMedia() []*storage.BlockDevice {
 // SetScanMedia is the setter for ScanInfo Media
 func (window *Window) SetScanMedia(scannedMedia []*storage.BlockDevice) {
 	window.scanInfo.Media = scannedMedia
+}
+
+// SetPreCheckChannel is the setter for PreCheckInfo Channel
+func (window *Window) SetPreCheckChannel(success bool) {
+	window.preCheckInfo.Channel <- success
 }
 
 // GetWelcomeMessage gets the welcome message
