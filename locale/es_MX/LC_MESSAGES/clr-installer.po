@@ -481,8 +481,8 @@ msgstr "Desactivada"
 msgid "Installation failed."
 msgstr "Instalación fallida."
 
-msgid "Network is not working."
-msgstr "La red no está funcionando."
+msgid "Network connectivity failed."
+msgstr "La conectividad de la red falló."
 
 msgid "System failed to pass pre-install checks."
 msgstr "El sistema no pasó las comprobaciones previas a la instalación."
@@ -523,3 +523,35 @@ msgstr "Verificando la integridad de archivos"
 
 msgid "Downloading missing files"
 msgstr "Descargando los archivos faltantes"
+
+msgid "Checking system for compatibility"
+msgstr "Comprobando la compatibilidad del sistema"
+
+msgid "Installation in progress."
+msgstr "Instalación en curso."
+
+msgid "Installation successful."
+msgstr "Instalación exitosa."
+
+msgid "Exit."
+msgstr "Salida."
+
+msgid "Checking Prerequisites"
+msgstr "Comprobación de requisitos previos"
+
+msgid "Checking Prerequisites."
+msgstr "Comprobación de requisitos previos."
+
+msgid "Prerequisites passed. Proceeding."
+msgstr "Requisitos previos aprobados. Proceder."
+
+#, c-format
+msgid "Use %s to configure network."
+msgstr "Use %s para configurar la red."
+
+msgid "System not compatible."
+msgstr "Sistema no compatible."
+
+#, c-format
+msgid "Check %s for details."
+msgstr "Compruebe %s para más detalles."

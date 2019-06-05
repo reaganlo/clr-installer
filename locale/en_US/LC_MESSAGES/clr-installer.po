@@ -481,8 +481,8 @@ msgstr "Disabled"
 msgid "Installation failed."
 msgstr "Installation failed."
 
-msgid "Network is not working."
-msgstr "Network is not working."
+msgid "Network connectivity failed."
+msgstr "Network connectivity failed."
 
 msgid "System failed to pass pre-install checks."
 msgstr "System failed to pass pre-install checks."
@@ -523,3 +523,35 @@ msgstr "Verifying files integrity"
 
 msgid "Downloading missing files"
 msgstr "Downloading missing files"
+
+msgid "Checking system for compatibility"
+msgstr "Checking system for compatibility"
+
+msgid "Installation in progress."
+msgstr "Installation in progress."
+
+msgid "Installation successful."
+msgstr "Installation successful."
+
+msgid "Exit."
+msgstr "Exit."
+
+msgid "Checking Prerequisites"
+msgstr "Checking Prerequisites"
+
+msgid "Checking Prerequisites."
+msgstr "Checking Prerequisites."
+
+msgid "Prerequisites passed. Proceeding."
+msgstr "Prerequisites passed. Proceeding."
+
+#, c-format
+msgid "Use %s to configure network."
+msgstr "Use %s to configure network."
+
+msgid "System not compatible."
+msgstr "System not compatible."
+
+#, c-format
+msgid "Check %s for details."
+msgstr "Check %s for details."
