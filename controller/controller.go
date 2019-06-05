@@ -520,7 +520,7 @@ func contentInstall(rootDir string, version string, model *model.SystemInstall, 
 			warnMsg := utils.Locale.Get("Disabling automatic updates failed")
 			log.Warning(warnMsg)
 			prg.Failure()
-			return prg, err
+			return prg, nil // Since this is trivial return error as nil
 		}
 		prg.Success()
 	}
