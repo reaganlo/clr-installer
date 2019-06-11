@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/gotk3/gotk3/glib"
+
 	"github.com/clearlinux/clr-installer/args"
 	"github.com/clearlinux/clr-installer/cmd"
 	"github.com/clearlinux/clr-installer/conf"
@@ -117,15 +119,33 @@ func (m Message) Process(line string) {
 		// create a new instance of the progress bar with the correct description
 		if prgDesc != m.StepDescription {
 			log.Debug("Setting progress for task %s", m.StepDescription)
-			prg = progress.MultiStep(total, description)
+			_, err := glib.IdleAdd(func() {
+				prg = progress.MultiStep(total, description)
+			})
+			if err != nil {
+				log.ErrorError(err) //TODO: Handle error in a better way
+
+			}
 			prgDesc = m.StepDescription
 		}
 
 		// report current % of completion
-		prg.Partial(m.StepCompletion)
+		_, err := glib.IdleAdd(func() {
+			prg.Partial(m.StepCompletion)
+		})
+		if err != nil {
+			log.ErrorError(err) //TODO: Handle error in a better way
+			return
+		}
 		if m.StepCompletion == total {
 			log.Debug("Task %s completed", m.StepDescription)
-			prg.Success()
+			_, err = glib.IdleAdd(func() {
+				prg.Success()
+			})
+			if err != nil {
+				log.ErrorError(err) //TODO: Handle error in a better way
+				return
+			}
 			prgDesc = ""
 		}
 	}

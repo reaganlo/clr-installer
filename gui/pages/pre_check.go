@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 
 	ctrl "github.com/clearlinux/clr-installer/controller"
@@ -174,7 +175,13 @@ func (page *PreCheckPage) ResetChanges() {
 			page.controller.SetButtonState(ButtonExit, false)
 			success = true
 		}
-		page.pbar.SetFraction(1.0)
+		_, err = glib.IdleAdd(func() {
+			page.pbar.SetFraction(1.0)
+		})
+		if err != nil {
+			log.ErrorError(err) //TODO: Handle error in a better way
+			return
+		}
 		time.Sleep(common.LoopWaitDuration * 15) // Wait for a while so that the user can read the message
 		page.controller.SetPreCheckChannel(success)
 	}()
@@ -223,12 +230,31 @@ func (page *PreCheckPage) LoopWaitDuration() time.Duration {
 
 // Partial handles an actual progress update
 func (page *PreCheckPage) Partial(total int, step int) {
-	page.pbar.SetFraction(float64(step) / float64(total))
+	_, err := glib.IdleAdd(func() {
+		page.pbar.SetFraction(float64(step) / float64(total))
+	})
+	if err != nil {
+		log.ErrorError(err) //TODO: Handle error in a better way
+		return
+	}
 }
 
 // Step will step the progressbar in indeterminate mode
 func (page *PreCheckPage) Step() {
 	// Pulse twice for visual feedback
-	page.pbar.Pulse()
-	page.pbar.Pulse()
+	_, err := glib.IdleAdd(func() {
+		page.pbar.Pulse()
+	})
+	if err != nil {
+		log.ErrorError(err) //TODO: Handle error in a better way
+		return
+	}
+
+	_, err = glib.IdleAdd(func() {
+		page.pbar.Pulse()
+	})
+	if err != nil {
+		log.ErrorError(err) //TODO: Handle error in a better way
+		return
+	}
 }
