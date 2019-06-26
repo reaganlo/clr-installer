@@ -6,29 +6,27 @@ package gui
 
 import (
 	"github.com/gotk3/gotk3/gtk"
-
-	"github.com/clearlinux/clr-installer/gui/pages"
 )
 
 // ContentView is used to encapsulate the Required/Advanced options view
 // by wrapping them into simple styled lists
 type ContentView struct {
-	views      map[int]pages.Page     // Mapping of row to page
+	views      map[int]Page           // Mapping of row to page
 	widgets    map[int]*SummaryWidget // Mapping of page to header
-	controller pages.Controller
+	controller Controller
 
 	scroll *gtk.ScrolledWindow
 	list   *gtk.ListBox
 }
 
 // NewContentView will attempt creation of a new ContentView
-func NewContentView(controller pages.Controller) (*ContentView, error) {
+func NewContentView(controller Controller) (*ContentView, error) {
 	var err error
 
 	// Init the struct
 	view := &ContentView{
 		controller: controller,
-		views:      make(map[int]pages.Page),
+		views:      make(map[int]Page),
 		widgets:    make(map[int]*SummaryWidget),
 	}
 
@@ -72,7 +70,7 @@ func (view *ContentView) GetRootWidget() gtk.IWidget {
 
 // AddPage will add the relevant page to this content view.
 // Right now it does nothing.
-func (view *ContentView) AddPage(page pages.Page) error {
+func (view *ContentView) AddPage(page Page) error {
 	widget, err := NewSummaryWidget(page)
 	if err != nil {
 		return err
@@ -96,7 +94,7 @@ func (view *ContentView) onRowActivated(box *gtk.ListBox, row *gtk.ListBoxRow) {
 }
 
 // UpdateView will update the summary for the given page
-func (view *ContentView) UpdateView(page pages.Page) {
+func (view *ContentView) UpdateView(page Page) {
 	view.widgets[page.GetID()].Update()
 }
 

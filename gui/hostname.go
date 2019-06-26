@@ -2,12 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package pages
+package gui
 
 import (
 	"github.com/gotk3/gotk3/gtk"
 
-	"github.com/clearlinux/clr-installer/gui/common"
 	"github.com/clearlinux/clr-installer/hostname"
 	"github.com/clearlinux/clr-installer/model"
 	"github.com/clearlinux/clr-installer/utils"
@@ -43,8 +42,8 @@ func NewHostnamePage(controller Controller, model *model.SystemInstall) (Page, e
 		return nil, err
 	}
 	page.entry.SetMaxLength(hostname.MaxHostnameLength)
-	page.entry.SetMarginStart(common.StartEndMargin)
-	page.entry.SetMarginEnd(common.StartEndMargin)
+	page.entry.SetMarginStart(StartEndMargin)
+	page.entry.SetMarginEnd(StartEndMargin)
 	page.box.PackStart(page.entry, false, false, 0)
 
 	// Rules label
@@ -53,7 +52,7 @@ func NewHostnamePage(controller Controller, model *model.SystemInstall) (Page, e
 	if err != nil {
 		return nil, err
 	}
-	page.rules.SetMarginStart(common.StartEndMargin)
+	page.rules.SetMarginStart(StartEndMargin)
 	page.rules.SetHAlign(gtk.ALIGN_START)
 	page.box.PackStart(page.rules, false, false, 10)
 
@@ -62,8 +61,8 @@ func NewHostnamePage(controller Controller, model *model.SystemInstall) (Page, e
 	if err != nil {
 		return nil, err
 	}
-	page.warning.SetMarginStart(common.StartEndMargin)
-	page.warning.SetMarginEnd(common.StartEndMargin)
+	page.warning.SetMarginStart(StartEndMargin)
+	page.warning.SetMarginEnd(StartEndMargin)
 	page.box.PackStart(page.warning, false, false, 10)
 
 	// Generate signal on Hostname entry change

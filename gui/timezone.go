@@ -2,38 +2,38 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package pages
+package gui
 
 import (
+	"github.com/clearlinux/clr-installer/utils"
 	"strings"
 
 	"github.com/gotk3/gotk3/gtk"
 
-	"github.com/clearlinux/clr-installer/keyboard"
 	"github.com/clearlinux/clr-installer/model"
-	"github.com/clearlinux/clr-installer/utils"
+	"github.com/clearlinux/clr-installer/timezone"
 )
 
-// KeyboardPage is a simple page to help with KeyboardPage settings
-type KeyboardPage struct {
+// TimezonePage is a simple page to help with TimezonePage settings
+type TimezonePage struct {
 	controller  Controller
 	model       *model.SystemInstall
-	data        []*keyboard.Keymap
-	selected    *keyboard.Keymap
+	data        []*timezone.TimeZone
+	selected    *timezone.TimeZone
 	box         *gtk.Box
 	searchEntry *gtk.SearchEntry
 	scroll      *gtk.ScrolledWindow
 	list        *gtk.ListBox
 }
 
-// NewKeyboardPage returns a new KeyboardPage
-func NewKeyboardPage(controller Controller, model *model.SystemInstall) (Page, error) {
-	data, err := keyboard.LoadKeymaps()
+// NewTimezonePage returns a new TimezonePage
+func NewTimezonePage(controller Controller, model *model.SystemInstall) (Page, error) {
+	data, err := timezone.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	page := &KeyboardPage{
+	page := &TimezonePage{
 		controller: controller,
 		model:      model,
 		data:       data,
@@ -91,38 +91,39 @@ func NewKeyboardPage(controller Controller, model *model.SystemInstall) (Page, e
 	return page, nil
 }
 
-func (page *KeyboardPage) getCode() string {
+func (page *TimezonePage) getCode() string {
 	code := page.GetConfiguredValue()
 	if code == "" {
-		code = keyboard.DefaultKeyboard
+		code = timezone.DefaultTimezone
 	}
 	return code
 }
 
-func (page *KeyboardPage) onRowActivated(box *gtk.ListBox, row *gtk.ListBoxRow) {
+func (page *TimezonePage) onRowActivated(box *gtk.ListBox, row *gtk.ListBoxRow) {
 	page.selected = page.data[row.GetIndex()]
 	page.controller.SetButtonState(ButtonConfirm, true)
 }
 
 // Select row in the box, activate it and scroll to it
-func (page *KeyboardPage) activateRow(index int) {
+func (page *TimezonePage) activateRow(index int) {
 	row := page.list.GetRowAtIndex(index)
 	page.list.SelectRow(row)
 	page.onRowActivated(page.list, row)
 	scrollToView(page.scroll, page.list, &row.Widget)
 }
 
-func (page *KeyboardPage) onChange(entry *gtk.SearchEntry) {
+func (page *TimezonePage) onChange(entry *gtk.SearchEntry) {
 	var setIndex bool
 	var index int
+
 	search := getTextFromSearchEntry(entry)
-	code := page.getCode() // Get current keyboard
+	code := page.getCode() // Get current timezone
 	for i, v := range page.data {
 		if search != "" && !strings.Contains(strings.ToLower(v.Code), strings.ToLower(search)) {
 			page.list.GetRowAtIndex(i).Hide()
 		} else {
 			page.list.GetRowAtIndex(i).Show()
-			if search == "" { // Get index of current keyboard
+			if search == "" { // Get index of current timezone
 				if v.Code == code {
 					index = i
 					setIndex = true
@@ -143,48 +144,48 @@ func (page *KeyboardPage) onChange(entry *gtk.SearchEntry) {
 	}
 }
 
-// IsRequired will return true as we always need a KeyboardPage
-func (page *KeyboardPage) IsRequired() bool {
+// IsRequired will return true as we always need a TimezonePage
+func (page *TimezonePage) IsRequired() bool {
 	return true
 }
 
 // IsDone checks if all the steps are completed
-func (page *KeyboardPage) IsDone() bool {
+func (page *TimezonePage) IsDone() bool {
 	return page.GetConfiguredValue() != ""
 }
 
 // GetID returns the ID for this page
-func (page *KeyboardPage) GetID() int {
-	return PageIDKeyboard
+func (page *TimezonePage) GetID() int {
+	return PageIDTimezone
 }
 
 // GetIcon returns the icon for this page
-func (page *KeyboardPage) GetIcon() string {
-	return "preferences-desktop-keyboard-shortcuts"
+func (page *TimezonePage) GetIcon() string {
+	return "preferences-system-time"
 }
 
 // GetRootWidget returns the root embeddable widget for this page
-func (page *KeyboardPage) GetRootWidget() gtk.IWidget {
+func (page *TimezonePage) GetRootWidget() gtk.IWidget {
 	return page.box
 }
 
 // GetSummary will return the summary for this page
-func (page *KeyboardPage) GetSummary() string {
-	return utils.Locale.Get("Select Keyboard")
+func (page *TimezonePage) GetSummary() string {
+	return utils.Locale.Get("Select Time Zone")
 }
 
 // GetTitle will return the title for this page
-func (page *KeyboardPage) GetTitle() string {
+func (page *TimezonePage) GetTitle() string {
 	return page.GetSummary()
 }
 
 // StoreChanges will store this pages changes into the model
-func (page *KeyboardPage) StoreChanges() {
-	page.model.Keyboard = page.selected
+func (page *TimezonePage) StoreChanges() {
+	page.model.Timezone = page.selected
 }
 
 // ResetChanges will reset this page to match the model
-func (page *KeyboardPage) ResetChanges() {
+func (page *TimezonePage) ResetChanges() {
 	code := page.getCode()
 	for i, v := range page.data {
 		if v.Code == code {
@@ -196,9 +197,9 @@ func (page *KeyboardPage) ResetChanges() {
 }
 
 // GetConfiguredValue returns our current config
-func (page *KeyboardPage) GetConfiguredValue() string {
-	if page.model.Keyboard == nil {
+func (page *TimezonePage) GetConfiguredValue() string {
+	if page.model.Timezone == nil {
 		return ""
 	}
-	return page.model.Keyboard.Code
+	return page.model.Timezone.Code
 }

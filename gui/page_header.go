@@ -6,8 +6,6 @@ package gui
 
 import (
 	"github.com/gotk3/gotk3/gtk"
-
-	"github.com/clearlinux/clr-installer/gui/pages"
 )
 
 // PageHeader provides a wrapper around a page, with a consistent
@@ -15,7 +13,7 @@ import (
 // within the view.
 type PageHeader struct {
 	handle *gtk.Box
-	page   pages.Page
+	page   Page
 
 	ebox   *gtk.EventBox
 	layout *gtk.Box
@@ -24,7 +22,7 @@ type PageHeader struct {
 }
 
 // PageHeaderNew constructs a new page header for the given page
-func PageHeaderNew(page pages.Page) (*PageHeader, error) {
+func PageHeaderNew(page Page) (*PageHeader, error) {
 	var st *gtk.StyleContext
 
 	// Root widget

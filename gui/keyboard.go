@@ -2,39 +2,38 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package pages
+package gui
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/gotk3/gotk3/gtk"
 
-	"github.com/clearlinux/clr-installer/language"
+	"github.com/clearlinux/clr-installer/keyboard"
 	"github.com/clearlinux/clr-installer/model"
 	"github.com/clearlinux/clr-installer/utils"
 )
 
-// LanguagePage is a simple page to help with LanguagePage settings
-type LanguagePage struct {
+// KeyboardPage is a simple page to help with KeyboardPage settings
+type KeyboardPage struct {
 	controller  Controller
 	model       *model.SystemInstall
-	data        []*language.Language
-	selected    *language.Language
+	data        []*keyboard.Keymap
+	selected    *keyboard.Keymap
 	box         *gtk.Box
 	searchEntry *gtk.SearchEntry
 	scroll      *gtk.ScrolledWindow
 	list        *gtk.ListBox
 }
 
-// NewLanguagePage returns a new LanguagePage
-func NewLanguagePage(controller Controller, model *model.SystemInstall) (Page, error) {
-	data, err := language.Load()
+// NewKeyboardPage returns a new KeyboardPage
+func NewKeyboardPage(controller Controller, model *model.SystemInstall) (Page, error) {
+	data, err := keyboard.LoadKeymaps()
 	if err != nil {
 		return nil, err
 	}
 
-	page := &LanguagePage{
+	page := &KeyboardPage{
 		controller: controller,
 		model:      model,
 		data:       data,
@@ -75,24 +74,16 @@ func NewLanguagePage(controller Controller, model *model.SystemInstall) (Page, e
 
 	// Create list data
 	for _, v := range page.data {
-		desc, code := v.GetConfValues()
-
 		box, err := setBox(gtk.ORIENTATION_VERTICAL, 0, "box-list-label")
 		if err != nil {
 			return nil, err
 		}
 
-		labelDesc, err := setLabel(desc, "list-label-description", 0.0)
+		labelDesc, err := setLabel(v.Code, "list-label-description", 0.0)
 		if err != nil {
 			return nil, err
 		}
 		box.PackStart(labelDesc, false, false, 0)
-
-		labelCode, err := setLabel(code, "list-label-code", 0.0)
-		if err != nil {
-			return nil, err
-		}
-		box.PackStart(labelCode, false, false, 0)
 
 		page.list.Add(box)
 	}
@@ -100,46 +91,38 @@ func NewLanguagePage(controller Controller, model *model.SystemInstall) (Page, e
 	return page, nil
 }
 
-func (page *LanguagePage) getCode() string {
-	code := ""
-	if page.model.Language != nil {
-		code = page.model.Language.Code
-	}
-
+func (page *KeyboardPage) getCode() string {
+	code := page.GetConfiguredValue()
 	if code == "" {
-		code = language.DefaultLanguage
+		code = keyboard.DefaultKeyboard
 	}
-
 	return code
 }
 
-func (page *LanguagePage) onRowActivated(box *gtk.ListBox, row *gtk.ListBoxRow) {
+func (page *KeyboardPage) onRowActivated(box *gtk.ListBox, row *gtk.ListBoxRow) {
 	page.selected = page.data[row.GetIndex()]
-	page.controller.SetButtonState(ButtonNext, true)
+	page.controller.SetButtonState(ButtonConfirm, true)
 }
 
 // Select row in the box, activate it and scroll to it
-func (page *LanguagePage) activateRow(index int) {
+func (page *KeyboardPage) activateRow(index int) {
 	row := page.list.GetRowAtIndex(index)
 	page.list.SelectRow(row)
 	page.onRowActivated(page.list, row)
 	scrollToView(page.scroll, page.list, &row.Widget)
 }
 
-func (page *LanguagePage) onChange(entry *gtk.SearchEntry) {
-	search := getTextFromSearchEntry(entry)
-
+func (page *KeyboardPage) onChange(entry *gtk.SearchEntry) {
 	var setIndex bool
 	var index int
-	code := page.getCode() // Get current language
+	search := getTextFromSearchEntry(entry)
+	code := page.getCode() // Get current keyboard
 	for i, v := range page.data {
-		vDesc, vCode := v.GetConfValues()
-		term := fmt.Sprintf("%s %s", vDesc, vCode)
-		if search != "" && !strings.Contains(strings.ToLower(term), strings.ToLower(search)) {
+		if search != "" && !strings.Contains(strings.ToLower(v.Code), strings.ToLower(search)) {
 			page.list.GetRowAtIndex(i).Hide()
 		} else {
 			page.list.GetRowAtIndex(i).Show()
-			if search == "" { // Get index of current language
+			if search == "" { // Get index of current keyboard
 				if v.Code == code {
 					index = i
 					setIndex = true
@@ -156,55 +139,52 @@ func (page *LanguagePage) onChange(entry *gtk.SearchEntry) {
 		page.activateRow(index)
 	} else {
 		page.selected = nil
-		page.controller.SetButtonState(ButtonNext, false)
+		page.controller.SetButtonState(ButtonConfirm, false)
 	}
 }
 
-// IsRequired will return true as we always need a LanguagePage
-func (page *LanguagePage) IsRequired() bool {
+// IsRequired will return true as we always need a KeyboardPage
+func (page *KeyboardPage) IsRequired() bool {
 	return true
 }
 
 // IsDone checks if all the steps are completed
-func (page *LanguagePage) IsDone() bool {
+func (page *KeyboardPage) IsDone() bool {
 	return page.GetConfiguredValue() != ""
 }
 
 // GetID returns the ID for this page
-func (page *LanguagePage) GetID() int {
-	return PageIDWelcome
+func (page *KeyboardPage) GetID() int {
+	return PageIDKeyboard
 }
 
 // GetIcon returns the icon for this page
-func (page *LanguagePage) GetIcon() string {
-	return "preferences-desktop-locale"
+func (page *KeyboardPage) GetIcon() string {
+	return "preferences-desktop-keyboard-shortcuts"
 }
 
 // GetRootWidget returns the root embeddable widget for this page
-func (page *LanguagePage) GetRootWidget() gtk.IWidget {
+func (page *KeyboardPage) GetRootWidget() gtk.IWidget {
 	return page.box
 }
 
 // GetSummary will return the summary for this page
-func (page *LanguagePage) GetSummary() string {
-	return utils.Locale.Get("Select Language")
+func (page *KeyboardPage) GetSummary() string {
+	return utils.Locale.Get("Select Keyboard")
 }
 
 // GetTitle will return the title for this page
-func (page *LanguagePage) GetTitle() string {
+func (page *KeyboardPage) GetTitle() string {
 	return page.GetSummary()
 }
 
 // StoreChanges will store this pages changes into the model
-func (page *LanguagePage) StoreChanges() {
-	page.controller.SetButtonState(ButtonNext, false) // TODO: Determine why the button is not actually being disabled
-	page.model.Language = page.selected
-	language.SetSelectionLanguage(page.model.Language.Code)
-	utils.SetLocale(page.model.Language.Code)
+func (page *KeyboardPage) StoreChanges() {
+	page.model.Keyboard = page.selected
 }
 
 // ResetChanges will reset this page to match the model
-func (page *LanguagePage) ResetChanges() {
+func (page *KeyboardPage) ResetChanges() {
 	code := page.getCode()
 	for i, v := range page.data {
 		if v.Code == code {
@@ -216,10 +196,9 @@ func (page *LanguagePage) ResetChanges() {
 }
 
 // GetConfiguredValue returns our current config
-func (page *LanguagePage) GetConfiguredValue() string {
-	if page.model.Language == nil {
+func (page *KeyboardPage) GetConfiguredValue() string {
+	if page.model.Keyboard == nil {
 		return ""
 	}
-	desc, code := page.model.Language.GetConfValues()
-	return fmt.Sprintf("%s  [%s]", desc, code)
+	return page.model.Keyboard.Code
 }

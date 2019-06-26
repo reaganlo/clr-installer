@@ -2,38 +2,39 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package pages
+package gui
 
 import (
-	"github.com/clearlinux/clr-installer/utils"
+	"fmt"
 	"strings"
 
 	"github.com/gotk3/gotk3/gtk"
 
+	"github.com/clearlinux/clr-installer/language"
 	"github.com/clearlinux/clr-installer/model"
-	"github.com/clearlinux/clr-installer/timezone"
+	"github.com/clearlinux/clr-installer/utils"
 )
 
-// TimezonePage is a simple page to help with TimezonePage settings
-type TimezonePage struct {
+// LanguagePage is a simple page to help with LanguagePage settings
+type LanguagePage struct {
 	controller  Controller
 	model       *model.SystemInstall
-	data        []*timezone.TimeZone
-	selected    *timezone.TimeZone
+	data        []*language.Language
+	selected    *language.Language
 	box         *gtk.Box
 	searchEntry *gtk.SearchEntry
 	scroll      *gtk.ScrolledWindow
 	list        *gtk.ListBox
 }
 
-// NewTimezonePage returns a new TimezonePage
-func NewTimezonePage(controller Controller, model *model.SystemInstall) (Page, error) {
-	data, err := timezone.Load()
+// NewLanguagePage returns a new LanguagePage
+func NewLanguagePage(controller Controller, model *model.SystemInstall) (Page, error) {
+	data, err := language.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	page := &TimezonePage{
+	page := &LanguagePage{
 		controller: controller,
 		model:      model,
 		data:       data,
@@ -74,16 +75,24 @@ func NewTimezonePage(controller Controller, model *model.SystemInstall) (Page, e
 
 	// Create list data
 	for _, v := range page.data {
+		desc, code := v.GetConfValues()
+
 		box, err := setBox(gtk.ORIENTATION_VERTICAL, 0, "box-list-label")
 		if err != nil {
 			return nil, err
 		}
 
-		labelDesc, err := setLabel(v.Code, "list-label-description", 0.0)
+		labelDesc, err := setLabel(desc, "list-label-description", 0.0)
 		if err != nil {
 			return nil, err
 		}
 		box.PackStart(labelDesc, false, false, 0)
+
+		labelCode, err := setLabel(code, "list-label-code", 0.0)
+		if err != nil {
+			return nil, err
+		}
+		box.PackStart(labelCode, false, false, 0)
 
 		page.list.Add(box)
 	}
@@ -91,39 +100,46 @@ func NewTimezonePage(controller Controller, model *model.SystemInstall) (Page, e
 	return page, nil
 }
 
-func (page *TimezonePage) getCode() string {
-	code := page.GetConfiguredValue()
-	if code == "" {
-		code = timezone.DefaultTimezone
+func (page *LanguagePage) getCode() string {
+	code := ""
+	if page.model.Language != nil {
+		code = page.model.Language.Code
 	}
+
+	if code == "" {
+		code = language.DefaultLanguage
+	}
+
 	return code
 }
 
-func (page *TimezonePage) onRowActivated(box *gtk.ListBox, row *gtk.ListBoxRow) {
+func (page *LanguagePage) onRowActivated(box *gtk.ListBox, row *gtk.ListBoxRow) {
 	page.selected = page.data[row.GetIndex()]
-	page.controller.SetButtonState(ButtonConfirm, true)
+	page.controller.SetButtonState(ButtonNext, true)
 }
 
 // Select row in the box, activate it and scroll to it
-func (page *TimezonePage) activateRow(index int) {
+func (page *LanguagePage) activateRow(index int) {
 	row := page.list.GetRowAtIndex(index)
 	page.list.SelectRow(row)
 	page.onRowActivated(page.list, row)
 	scrollToView(page.scroll, page.list, &row.Widget)
 }
 
-func (page *TimezonePage) onChange(entry *gtk.SearchEntry) {
+func (page *LanguagePage) onChange(entry *gtk.SearchEntry) {
+	search := getTextFromSearchEntry(entry)
+
 	var setIndex bool
 	var index int
-
-	search := getTextFromSearchEntry(entry)
-	code := page.getCode() // Get current timezone
+	code := page.getCode() // Get current language
 	for i, v := range page.data {
-		if search != "" && !strings.Contains(strings.ToLower(v.Code), strings.ToLower(search)) {
+		vDesc, vCode := v.GetConfValues()
+		term := fmt.Sprintf("%s %s", vDesc, vCode)
+		if search != "" && !strings.Contains(strings.ToLower(term), strings.ToLower(search)) {
 			page.list.GetRowAtIndex(i).Hide()
 		} else {
 			page.list.GetRowAtIndex(i).Show()
-			if search == "" { // Get index of current timezone
+			if search == "" { // Get index of current language
 				if v.Code == code {
 					index = i
 					setIndex = true
@@ -140,52 +156,55 @@ func (page *TimezonePage) onChange(entry *gtk.SearchEntry) {
 		page.activateRow(index)
 	} else {
 		page.selected = nil
-		page.controller.SetButtonState(ButtonConfirm, false)
+		page.controller.SetButtonState(ButtonNext, false)
 	}
 }
 
-// IsRequired will return true as we always need a TimezonePage
-func (page *TimezonePage) IsRequired() bool {
+// IsRequired will return true as we always need a LanguagePage
+func (page *LanguagePage) IsRequired() bool {
 	return true
 }
 
 // IsDone checks if all the steps are completed
-func (page *TimezonePage) IsDone() bool {
+func (page *LanguagePage) IsDone() bool {
 	return page.GetConfiguredValue() != ""
 }
 
 // GetID returns the ID for this page
-func (page *TimezonePage) GetID() int {
-	return PageIDTimezone
+func (page *LanguagePage) GetID() int {
+	return PageIDWelcome
 }
 
 // GetIcon returns the icon for this page
-func (page *TimezonePage) GetIcon() string {
-	return "preferences-system-time"
+func (page *LanguagePage) GetIcon() string {
+	return "preferences-desktop-locale"
 }
 
 // GetRootWidget returns the root embeddable widget for this page
-func (page *TimezonePage) GetRootWidget() gtk.IWidget {
+func (page *LanguagePage) GetRootWidget() gtk.IWidget {
 	return page.box
 }
 
 // GetSummary will return the summary for this page
-func (page *TimezonePage) GetSummary() string {
-	return utils.Locale.Get("Select Time Zone")
+func (page *LanguagePage) GetSummary() string {
+	return utils.Locale.Get("Select Language")
 }
 
 // GetTitle will return the title for this page
-func (page *TimezonePage) GetTitle() string {
+func (page *LanguagePage) GetTitle() string {
 	return page.GetSummary()
 }
 
 // StoreChanges will store this pages changes into the model
-func (page *TimezonePage) StoreChanges() {
-	page.model.Timezone = page.selected
+func (page *LanguagePage) StoreChanges() {
+	page.controller.SetButtonState(ButtonNext, false) // TODO: Determine why the button is not actually being disabled
+	page.model.Language = page.selected
+	language.SetSelectionLanguage(page.model.Language.Code)
+	utils.SetLocale(page.model.Language.Code)
 }
 
 // ResetChanges will reset this page to match the model
-func (page *TimezonePage) ResetChanges() {
+func (page *LanguagePage) ResetChanges() {
 	code := page.getCode()
 	for i, v := range page.data {
 		if v.Code == code {
@@ -197,9 +216,10 @@ func (page *TimezonePage) ResetChanges() {
 }
 
 // GetConfiguredValue returns our current config
-func (page *TimezonePage) GetConfiguredValue() string {
-	if page.model.Timezone == nil {
+func (page *LanguagePage) GetConfiguredValue() string {
+	if page.model.Language == nil {
 		return ""
 	}
-	return page.model.Timezone.Code
+	desc, code := page.model.Language.GetConfValues()
+	return fmt.Sprintf("%s  [%s]", desc, code)
 }

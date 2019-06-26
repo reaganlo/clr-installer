@@ -10,8 +10,6 @@ import (
 	"github.com/gotk3/gotk3/gtk"
 
 	"github.com/clearlinux/clr-installer/args"
-	"github.com/clearlinux/clr-installer/gui/common"
-	"github.com/clearlinux/clr-installer/gui/pages"
 	"github.com/clearlinux/clr-installer/log"
 	"github.com/clearlinux/clr-installer/model"
 	"github.com/clearlinux/clr-installer/storage"
@@ -28,7 +26,7 @@ const (
 )
 
 // PageConstructor is a typedef of the constructors for our pages
-type PageConstructor func(controller pages.Controller, model *model.SystemInstall) (pages.Page, error)
+type PageConstructor func(controller Controller, model *model.SystemInstall) (Page, error)
 
 // Window provides management of the underlying GtkWindow and
 // associated windows to provide a level of OOP abstraction.
@@ -48,9 +46,9 @@ type Window struct {
 		switcher    *Switcher             // Allow switching between main menu
 		stack       *gtk.Stack            // Menu switching
 		screens     map[bool]*ContentView // Mapping to content views
-		welcomePage pages.Page            // Pointer to the welcome page
-		currentPage pages.Page            // Pointer to the currently open page
-		installPage pages.Page            // Pointer to the installer page
+		welcomePage Page                  // Pointer to the welcome page
+		currentPage Page                  // Pointer to the currently open page
+		installPage Page                  // Pointer to the installer page
 	}
 
 	// Buttons
@@ -76,7 +74,7 @@ type Window struct {
 
 	didInit  bool                // Whether initialized the view animation
 	pages    map[int]gtk.IWidget // Mapping to each root page
-	scanInfo pages.ScanInfo      // Information related to scanning the media
+	scanInfo ScanInfo            // Information related to scanning the media
 }
 
 // CreateHeaderBar creates invisible header bar
@@ -193,7 +191,7 @@ func (window *Window) createWelcomePage() (*Window, error) {
 
 	// Create the welcome page
 	pageCreators := []PageConstructor{
-		pages.NewLanguagePage,
+		NewLanguagePage,
 	}
 
 	for _, f := range pageCreators {
@@ -253,18 +251,18 @@ func (window *Window) createMenuPages() (*Window, error) {
 	// Our pages
 	pageCreators := []PageConstructor{
 		// required
-		pages.NewTimezonePage,
-		pages.NewKeyboardPage,
-		pages.NewDiskConfigPage,
-		pages.NewUserAddPage,
-		pages.NewTelemetryPage,
+		NewTimezonePage,
+		NewKeyboardPage,
+		NewDiskConfigPage,
+		NewUserAddPage,
+		NewTelemetryPage,
 
 		// advanced
-		pages.NewBundlePage,
-		pages.NewHostnamePage,
+		NewBundlePage,
+		NewHostnamePage,
 
 		// always last
-		pages.NewInstallPage,
+		NewInstallPage,
 	}
 
 	// Create all pages
@@ -320,7 +318,7 @@ func (window *Window) InitScreens() error {
 }
 
 // AddPage adds the page to the relevant switcher screen
-func (window *Window) AddPage(page pages.Page) error {
+func (window *Window) AddPage(page Page) error {
 	var (
 		err error
 		id  int
@@ -328,9 +326,9 @@ func (window *Window) AddPage(page pages.Page) error {
 
 	id = page.GetID()
 
-	if id == pages.PageIDWelcome {
+	if id == PageIDWelcome {
 		window.menu.welcomePage = page
-	} else if id == pages.PageIDInstall {
+	} else if id == PageIDInstall {
 		window.menu.installPage = page
 	} else { // Add to the required or advanced (optional) screen
 		err := window.menu.screens[page.IsRequired()].AddPage(page)
@@ -517,16 +515,16 @@ func (window *Window) pageClosed(applied bool) {
 }
 
 // ActivatePage customizes common widgets and displays the page
-func (window *Window) ActivatePage(page pages.Page) {
+func (window *Window) ActivatePage(page Page) {
 	window.menu.currentPage = page
 	id := page.GetID()
 
 	// Customize common widgets based on the page being loaded
 	switch id {
-	case pages.PageIDWelcome:
+	case PageIDWelcome:
 		window.banner.Show()
 		window.buttons.stack.SetVisibleChildName("welcome")
-	case pages.PageIDInstall:
+	case PageIDInstall:
 		window.menu.switcher.Hide()
 		window.banner.Show()
 		window.banner.labelText.SetMarkup(GetThankYouMessage())
@@ -541,7 +539,7 @@ func (window *Window) ActivatePage(page pages.Page) {
 			sc.AddClass("button-confirm")
 		}
 		window.buttons.quit.SetSensitive(false)
-	case pages.PageIDTelemetry:
+	case PageIDTelemetry:
 		window.menu.switcher.Hide()
 		window.banner.Hide()
 		window.buttons.stack.SetVisibleChildName("secondary")
@@ -567,25 +565,25 @@ func (window *Window) ActivatePage(page pages.Page) {
 }
 
 // SetButtonState is called by the pages to enable/disable certain buttons.
-func (window *Window) SetButtonState(flags pages.Button, enabled bool) {
-	if window.menu.currentPage.GetID() != pages.PageIDWelcome {
-		if flags&pages.ButtonCancel == pages.ButtonCancel {
+func (window *Window) SetButtonState(flags Button, enabled bool) {
+	if window.menu.currentPage.GetID() != PageIDWelcome {
+		if flags&ButtonCancel == ButtonCancel {
 			window.buttons.cancel.SetSensitive(enabled)
 		}
-		if flags&pages.ButtonConfirm == pages.ButtonConfirm {
+		if flags&ButtonConfirm == ButtonConfirm {
 			window.buttons.confirm.SetSensitive(enabled)
 		}
-		if flags&pages.ButtonQuit == pages.ButtonQuit {
+		if flags&ButtonQuit == ButtonQuit {
 			window.buttons.quit.SetSensitive(enabled)
 		}
-		if flags&pages.ButtonBack == pages.ButtonBack {
+		if flags&ButtonBack == ButtonBack {
 			window.buttons.back.SetSensitive(enabled)
 		}
 	} else {
-		if flags&pages.ButtonNext == pages.ButtonNext {
+		if flags&ButtonNext == ButtonNext {
 			window.buttons.next.SetSensitive(enabled)
 		}
-		if flags&pages.ButtonExit == pages.ButtonExit {
+		if flags&ButtonExit == ButtonExit {
 			window.buttons.exit.SetSensitive(enabled)
 		}
 	}
@@ -608,7 +606,7 @@ func (window *Window) launchMenuView() {
 	if retErr := syscheck.RunSystemCheck(true); retErr != nil {
 		contentBox, err := gtk.BoxNew(gtk.ORIENTATION_HORIZONTAL, 10)
 		contentBox.SetHAlign(gtk.ALIGN_FILL)
-		contentBox.SetMarginBottom(common.TopBottomMargin)
+		contentBox.SetMarginBottom(TopBottomMargin)
 		if err != nil {
 			log.Warning("Error creating box")
 			return
@@ -643,7 +641,7 @@ func (window *Window) launchMenuView() {
 		label.SetHAlign(gtk.ALIGN_END)
 		contentBox.PackStart(label, false, true, 0)
 
-		dialog, err := common.CreateDialogOneButton(contentBox, utils.Locale.Get("System Check Failed"), utils.Locale.Get("EXIT"), "button-cancel")
+		dialog, err := CreateDialogOneButton(contentBox, utils.Locale.Get("System Check Failed"), utils.Locale.Get("EXIT"), "button-cancel")
 		if err != nil {
 			log.Warning("Error creating dialog")
 			return
@@ -693,7 +691,7 @@ func (window *Window) confirmInstall() {
 
 	contentBox, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
 	contentBox.SetHAlign(gtk.ALIGN_FILL)
-	contentBox.SetMarginBottom(common.TopBottomMargin)
+	contentBox.SetMarginBottom(TopBottomMargin)
 	if err != nil {
 		log.Warning("Error creating box")
 		return
@@ -708,7 +706,7 @@ func (window *Window) confirmInstall() {
 	label.SetHAlign(gtk.ALIGN_START)
 	contentBox.PackStart(label, false, true, 0)
 
-	dialog, err := common.CreateDialogOkCancel(contentBox, title, utils.Locale.Get("CONFIRM"), utils.Locale.Get("CANCEL"))
+	dialog, err := CreateDialogOkCancel(contentBox, title, utils.Locale.Get("CONFIRM"), utils.Locale.Get("CANCEL"))
 	if err != nil {
 		log.Warning("Error creating dialog")
 		return

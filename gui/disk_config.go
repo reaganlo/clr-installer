@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package pages
+package gui
 
 import (
 	"fmt"
@@ -12,7 +12,6 @@ import (
 	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 
-	"github.com/clearlinux/clr-installer/gui/common"
 	"github.com/clearlinux/clr-installer/log"
 	"github.com/clearlinux/clr-installer/model"
 	"github.com/clearlinux/clr-installer/storage"
@@ -72,7 +71,7 @@ func NewDiskConfigPage(controller Controller, model *model.SystemInstall) (Page,
 		return nil, err
 	}
 	disk.scroll.SetMarginTop(10)
-	disk.scroll.SetMarginEnd(common.StartEndMargin)
+	disk.scroll.SetMarginEnd(StartEndMargin)
 	disk.box.PackStart(disk.scroll, true, true, 0)
 	disk.scroll.SetPolicy(gtk.POLICY_NEVER, gtk.POLICY_AUTOMATIC)
 
@@ -101,7 +100,7 @@ func NewDiskConfigPage(controller Controller, model *model.SystemInstall) (Page,
 		return nil, err
 	}
 	safeBox.SetMarginTop(10)
-	safeBox.SetMarginStart(common.StartEndMargin)
+	safeBox.SetMarginStart(StartEndMargin)
 	safeBox.PackStart(disk.safeButton, false, false, 10)
 	if _, err := disk.safeButton.Connect("toggled", func() {
 		// Enable/Disable the Combo Choose Box based on the radio button
@@ -144,7 +143,7 @@ func NewDiskConfigPage(controller Controller, model *model.SystemInstall) (Page,
 	if err != nil {
 		return nil, err
 	}
-	destructiveBox.SetMarginStart(common.StartEndMargin)
+	destructiveBox.SetMarginStart(StartEndMargin)
 	destructiveBox.PackStart(disk.destructiveButton, false, false, 10)
 	if _, err := disk.destructiveButton.Connect("toggled", func() {
 		// Enable/Disable the Combo Choose Box based on the radio button
@@ -219,7 +218,7 @@ func NewDiskConfigPage(controller Controller, model *model.SystemInstall) (Page,
 		return nil, err
 	}
 	disk.errorMessage.SetUseMarkup(true)
-	disk.errorMessage.SetMarginStart(common.StartEndMargin)
+	disk.errorMessage.SetMarginStart(StartEndMargin)
 	disk.scrollBox.Add(disk.errorMessage)
 
 	// Encryption button
@@ -229,7 +228,7 @@ func NewDiskConfigPage(controller Controller, model *model.SystemInstall) (Page,
 	}
 
 	disk.encryptCheck.SetLabel("  " + utils.Locale.Get("Enable Encryption"))
-	disk.encryptCheck.SetMarginStart(common.StartEndMargin)
+	disk.encryptCheck.SetMarginStart(StartEndMargin)
 	disk.encryptCheck.SetHAlign(gtk.ALIGN_START) // Ensures that clickable area is only within the label
 	disk.scrollBox.PackStart(disk.encryptCheck, false, false, 0)
 
@@ -253,7 +252,7 @@ func NewDiskConfigPage(controller Controller, model *model.SystemInstall) (Page,
 	if err != nil {
 		return nil, err
 	}
-	rescanBox.SetMarginStart(common.StartEndMargin)
+	rescanBox.SetMarginStart(StartEndMargin)
 	rescanBox.PackStart(disk.rescanButton, false, false, 10)
 
 	rescanBox.ShowAll()
@@ -375,7 +374,7 @@ func (disk *DiskConfig) createRescanDialog() {
 
 	contentBox, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
 	contentBox.SetHAlign(gtk.ALIGN_FILL)
-	contentBox.SetMarginBottom(common.TopBottomMargin)
+	contentBox.SetMarginBottom(TopBottomMargin)
 	if err != nil {
 		log.Warning("Error creating box")
 		return
@@ -388,10 +387,10 @@ func (disk *DiskConfig) createRescanDialog() {
 	}
 
 	label.SetHAlign(gtk.ALIGN_START)
-	label.SetMarginBottom(common.TopBottomMargin)
+	label.SetMarginBottom(TopBottomMargin)
 	contentBox.PackStart(label, true, true, 0)
 
-	disk.rescanDialog, err = common.CreateDialog(contentBox, title)
+	disk.rescanDialog, err = CreateDialog(contentBox, title)
 	if err != nil {
 		log.Warning("Error creating dialog")
 		return
@@ -404,7 +403,7 @@ func (disk *DiskConfig) createPassphraseDialog() {
 
 	contentBox, err := gtk.BoxNew(gtk.ORIENTATION_VERTICAL, 0)
 	contentBox.SetHAlign(gtk.ALIGN_FILL)
-	contentBox.SetMarginBottom(common.TopBottomMargin)
+	contentBox.SetMarginBottom(TopBottomMargin)
 	if err != nil {
 		log.Warning("Error creating box")
 		return
@@ -417,7 +416,7 @@ func (disk *DiskConfig) createPassphraseDialog() {
 	}
 
 	label.SetHAlign(gtk.ALIGN_START)
-	label.SetMarginBottom(common.TopBottomMargin)
+	label.SetMarginBottom(TopBottomMargin)
 	contentBox.PackStart(label, true, true, 0)
 
 	disk.passphrase, err = setEntry("")
@@ -425,7 +424,7 @@ func (disk *DiskConfig) createPassphraseDialog() {
 		log.Warning("Error creating entry")
 		return
 	}
-	disk.passphrase.SetMarginBottom(common.TopBottomMargin)
+	disk.passphrase.SetMarginBottom(TopBottomMargin)
 	contentBox.PackStart(disk.passphrase, true, true, 0)
 
 	disk.passphraseConfirm, err = setEntry("")
@@ -433,7 +432,7 @@ func (disk *DiskConfig) createPassphraseDialog() {
 		log.Warning("Error creating entry")
 		return
 	}
-	disk.passphraseConfirm.SetMarginBottom(common.TopBottomMargin)
+	disk.passphraseConfirm.SetMarginBottom(TopBottomMargin)
 	contentBox.PackStart(disk.passphraseConfirm, true, true, 0)
 
 	disk.passphraseWarning, err = setLabel("", "label-warning", 0.0)
@@ -443,17 +442,17 @@ func (disk *DiskConfig) createPassphraseDialog() {
 	}
 	contentBox.PackStart(disk.passphraseWarning, true, true, 0)
 
-	disk.passphraseCancel, err = common.SetButton(utils.Locale.Get("CANCEL"), "button-cancel")
-	disk.passphraseCancel.SetMarginEnd(common.ButtonSpacing)
+	disk.passphraseCancel, err = setButton(utils.Locale.Get("CANCEL"), "button-cancel")
+	disk.passphraseCancel.SetMarginEnd(ButtonSpacing)
 	if err != nil {
 		return
 	}
 
-	disk.passphraseOK, err = common.SetButton(utils.Locale.Get("CONFIRM"), "button-confirm")
+	disk.passphraseOK, err = setButton(utils.Locale.Get("CONFIRM"), "button-confirm")
 	if err != nil {
 		return
 	}
-	disk.passphraseOK.SetMarginEnd(common.StartEndMargin)
+	disk.passphraseOK.SetMarginEnd(StartEndMargin)
 	disk.passphraseOK.SetSensitive(false)
 
 	disk.passphrase.SetVisibility(false)
@@ -496,7 +495,7 @@ func (disk *DiskConfig) createPassphraseDialog() {
 		return
 	}
 
-	disk.passphraseDialog, err = common.CreateDialog(contentBox, title)
+	disk.passphraseDialog, err = CreateDialog(contentBox, title)
 	if err != nil {
 		log.Warning("Error creating dialog")
 		return

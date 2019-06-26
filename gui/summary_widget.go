@@ -7,7 +7,6 @@ package gui
 import (
 	"github.com/gotk3/gotk3/gtk"
 
-	"github.com/clearlinux/clr-installer/gui/pages"
 	"github.com/clearlinux/clr-installer/utils"
 )
 
@@ -25,12 +24,12 @@ type SummaryWidget struct {
 	image  *gtk.Image
 	label  *gtk.Label
 	value  *gtk.Label
-	page   pages.Page
+	page   Page
 	tick   *gtk.Image
 }
 
 // NewSummaryWidget will construct a new SummaryWidget for the given page.
-func NewSummaryWidget(page pages.Page) (*SummaryWidget, error) {
+func NewSummaryWidget(page Page) (*SummaryWidget, error) {
 	var st *gtk.StyleContext
 
 	// Create our root widget

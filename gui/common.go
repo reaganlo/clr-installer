@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-only
 
-package pages
+package gui
 
 import (
 	"math"
@@ -15,28 +15,49 @@ import (
 	"github.com/clearlinux/clr-installer/storage"
 )
 
-// Button allows us to flag up different buttons
-type Button uint
-
 const (
 	// ButtonCancel enables the cancel button
 	ButtonCancel Button = 1 << iota
-
 	// ButtonConfirm enables the confirm button
 	ButtonConfirm Button = 1 << iota
-
 	// ButtonQuit enables the quit button
 	ButtonQuit Button = 1 << iota
-
 	// ButtonBack enables the back button
 	ButtonBack Button = 1 << iota
-
 	// ButtonNext enables the next button
 	ButtonNext Button = 1 << iota
-
 	// ButtonExit enables the exit button
 	ButtonExit Button = 1 << iota
+
+	// PageIDWelcome is the language page key
+	PageIDWelcome = iota
+	// PageIDTimezone is the timezone page key
+	PageIDTimezone = iota
+	// PageIDKeyboard is the keyboard page key
+	PageIDKeyboard = iota
+	// PageIDBundle is the bundle page key
+	PageIDBundle = iota
+	// PageIDTelemetry is the telemetry page key
+	PageIDTelemetry = iota
+	// PageIDUserAdd is the user add page key
+	PageIDUserAdd = iota
+	// PageIDDiskConfig is the disk configuration page key
+	PageIDDiskConfig = iota
+	// PageIDHostname is the hostname page key
+	PageIDHostname = iota
+	// PageIDInstall is the special installation page key
+	PageIDInstall = iota
+
+	// StartEndMargin is the start and end margin
+	StartEndMargin int = 18
+	// TopBottomMargin is the top and bottom margin
+	TopBottomMargin int = 10
+	// ButtonSpacing is generic spacing between buttons
+	ButtonSpacing int = 4
 )
+
+// Button allows us to flag up different buttons
+type Button uint
 
 // Page interface provides a common definition that other
 // pages can share to give a standard interface for the
@@ -77,35 +98,6 @@ type ScanInfo struct {
 	Done    bool                   // Used to check if scanning has been done at least once
 	Media   []*storage.BlockDevice // Scanned media
 }
-
-const (
-	// PageIDWelcome is the language page key
-	PageIDWelcome = iota
-
-	// PageIDTimezone is the timezone page key
-	PageIDTimezone = iota
-
-	// PageIDKeyboard is the keyboard page key
-	PageIDKeyboard = iota
-
-	// PageIDBundle is the bundle page key
-	PageIDBundle = iota
-
-	// PageIDTelemetry is the telemetry page key
-	PageIDTelemetry = iota
-
-	// PageIDUserAdd is the user add page key
-	PageIDUserAdd = iota
-
-	// PageIDDiskConfig is the disk configuration page key
-	PageIDDiskConfig = iota
-
-	// PageIDHostname is the hostname page key
-	PageIDHostname = iota
-
-	// PageIDInstall is the special installation page key
-	PageIDInstall = iota
-)
 
 // Private helper to assist in the ugliness of forcibly scrolling a GtkListBox
 // to the selected row
@@ -290,6 +282,86 @@ func setButton(text, style string) (*gtk.Button, error) {
 	} else {
 		sc.AddClass(style)
 	}
+
+	return widget, nil
+}
+
+// CreateDialog creates a gtk dialog with no buttons
+func CreateDialog(contentBox *gtk.Box, title string) (*gtk.Dialog, error) {
+	var err error
+	widget, err := gtk.DialogNew()
+	if err != nil {
+		return nil, err
+	}
+	widget.SetModal(true)
+
+	widget.SetDefaultSize(350, 100)
+	widget.SetTitle(title)
+	sc, err := widget.GetStyleContext()
+	if err != nil {
+		log.Warning("Error getting style context: ", err) // Just log trivial error
+	} else {
+		sc.AddClass("dialog")
+	}
+
+	if contentBox != nil {
+		contentBox.SetMarginStart(StartEndMargin)
+		contentBox.SetMarginEnd(StartEndMargin)
+		contentBox.SetMarginTop(TopBottomMargin)
+		contentBox.SetMarginBottom(TopBottomMargin)
+		contentArea, err := widget.GetContentArea()
+		if err != nil {
+			log.Warning("Error getting content area: ", err)
+			return nil, err
+		}
+		contentArea.Add(contentBox)
+	}
+
+	return widget, nil
+}
+
+// CreateDialogOneButton creates a gtk dialog with a single button
+func CreateDialogOneButton(contentBox *gtk.Box, title, buttonLabel, buttonStyle string) (*gtk.Dialog, error) {
+	var err error
+	widget, err := CreateDialog(contentBox, title)
+	if err != nil {
+		return nil, err
+	}
+	widget.SetSkipTaskbarHint(false)
+	widget.SetResizable(false)
+
+	buttonExit, err := setButton(buttonLabel, buttonStyle)
+	if err != nil {
+		return nil, err
+	}
+	buttonExit.SetMarginEnd(ButtonSpacing)
+	widget.AddActionWidget(buttonExit, gtk.RESPONSE_CANCEL)
+
+	return widget, nil
+}
+
+// CreateDialogOkCancel creates a gtk dialog with Ok and Cancel buttons
+func CreateDialogOkCancel(contentBox *gtk.Box, title, ok, cancel string) (*gtk.Dialog, error) {
+	//parentWindow := GetWinHandle()
+	var err error
+	widget, err := CreateDialog(contentBox, title)
+	if err != nil {
+		return nil, err
+	}
+
+	buttonCancel, err := setButton(cancel, "button-cancel")
+	if err != nil {
+		return nil, err
+	}
+	buttonCancel.SetMarginEnd(ButtonSpacing)
+	widget.AddActionWidget(buttonCancel, gtk.RESPONSE_CANCEL)
+
+	buttonOK, err := setButton(ok, "button-confirm")
+	if err != nil {
+		return nil, err
+	}
+	buttonOK.SetMarginEnd(StartEndMargin)
+	widget.AddActionWidget(buttonOK, gtk.RESPONSE_OK)
 
 	return widget, nil
 }
