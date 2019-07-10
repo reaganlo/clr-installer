@@ -5,6 +5,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/rand"
 	"fmt"
@@ -89,15 +90,19 @@ type Telemetry struct {
 	userDefined bool
 }
 
-func init() {
-	// Initialize the event record ID
+// randomString generates hex string
+func randomString() (string, error) {
 	randData := make([]byte, 256)
 	_, err := rand.Read(randData)
 	if err != nil {
-		return
+		return "", err
 	}
+	return fmt.Sprintf("%x", md5.Sum(randData)), nil
+}
 
-	eventID = fmt.Sprintf("%x", md5.Sum(randData))
+func init() {
+	// Initialize the event record ID
+	eventID, _ = randomString()
 }
 
 // SetUserDefined set the user defined flag
@@ -241,93 +246,22 @@ func (tl *Telemetry) CreateTelemetryConf(rootDir string) error {
 	return nil
 }
 
-// CreateLocalTelemetryConf creates a new local custom Telemetry configuration
-// file to enable the uploading of telemetry records to the remote server.
-// Necessary as we change the default hostname to localhost in the server URI
-// during image creation to ensure record caching during the install.
-func (tl *Telemetry) CreateLocalTelemetryConf() error {
-
-	// Ensure the customer configuration file directory exists
-	targetConfDir := filepath.Dir(customTelemetryConf)
-	if err := utils.MkdirAll(targetConfDir, 0755); err != nil {
-		return err
-	}
-
-	if err := utils.CopyFile(defaultTelemetryConf, customTelemetryConf); err != nil {
-		log.Warning("Failed to copy telemetry config %q", customTelemetryConf)
-	}
-
-	log.Debug("Created Local Telemetry server configuration file %q", customTelemetryConf)
-
-	return nil
-}
-
-// UpdateLocalTelemetryServer updates the local custom Telemetry configuration
-// file using the customer server and ID
-func (tl *Telemetry) UpdateLocalTelemetryServer() error {
-
-	// Make sure we can read the current custom Telemetry configuration file
-	origConf, readErr := ioutil.ReadFile(customTelemetryConf)
-	if readErr != nil {
-		return readErr
-	}
-
-	newConfFile := customTelemetryConf + ".new"
-	newConf := serverExp.ReplaceAll(origConf, []byte("${1}"+tl.URL+"${3}"))
-	// Replace the server
-	// Write the new file
-	writeErr := ioutil.WriteFile(newConfFile, newConf, 0644)
-	if writeErr != nil {
-		return writeErr
-	}
-
-	// Move the new file into place
-	moveErr := os.Rename(newConfFile, customTelemetryConf)
-	if moveErr != nil {
-		return moveErr
-	}
-
-	log.Debug("Updated local Telemetry server configuration file with URL %q and tag %q", tl.URL, tl.TID)
-
-	return nil
-}
-
-// RestartLocalTelemetryServer restart the Telemetry service
-// required after changes to the configuration file
-func (tl *Telemetry) RestartLocalTelemetryServer() error {
-	args := []string{
-		"telemctl",
-		"restart",
-	}
-
-	err := cmd.RunAndLog(args...)
-	if err != nil {
-		return errors.Wrap(err)
-	}
-
-	return nil
-}
-
-// StopLocalTelemetryServer stops the Telemetry service
-func (tl *Telemetry) StopLocalTelemetryServer() error {
-	args := []string{
-		"telemctl",
-		"stop",
-	}
-
-	err := cmd.RunAndLog(args...)
-	if err != nil {
-		return errors.Wrap(err)
-	}
-
-	return nil
-}
-
 // CopyTelemetryRecords copies the local spooled telemetry records
 // to the target system to be uploaded when the target system is
 // booted and telemetry is enabled.
 func (tl *Telemetry) CopyTelemetryRecords(rootDir string) error {
-	err := filepath.Walk(telemetrySpoolDir,
+	// Get directory ownership
+	spoolDirInfo, err := os.Stat(telemetrySpoolDir)
+	if err != nil {
+		return fmt.Errorf("Unable to stat %q, %s", filepath.Join(telemetrySpoolDir), err)
+	}
+	sys := spoolDirInfo.Sys()
+	stat, ok := sys.(*syscall.Stat_t)
+	if !ok {
+		return fmt.Errorf("Could not stat telemetry %q", telemetrySpoolDir)
+	}
+
+	err = filepath.Walk(telemetrySpoolDir,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				log.Warning("Failure accessing a path %q: %v\n", path, err)
@@ -335,28 +269,16 @@ func (tl *Telemetry) CopyTelemetryRecords(rootDir string) error {
 			}
 			target := filepath.Join(rootDir, path)
 			if info.IsDir() {
-				// Create the matching target directory
-				if err := utils.MkdirAll(target, info.Mode()); err != nil {
-					log.Warning("Failed to mkdir telemetry %q", target)
-					return err
-				}
-
+				// Telemetry spool directory is flat
 				return nil
 			}
 			if err := utils.CopyFile(path, target); err != nil {
 				log.Warning("Failed to copy telemetry %q", target)
 			}
-
 			// Ensure all contents is owned correctly
-			sys := info.Sys()
-			stat, ok := sys.(*syscall.Stat_t)
-			if ok {
-				if err := os.Chown(target, int(stat.Uid), int(stat.Gid)); err != nil {
-					log.Warning("Failed to change ownership of %q to UID:%d, GID:%d",
-						target, stat.Uid, stat.Gid)
-				}
-			} else {
-				log.Warning("Could not stat telemetry %q", path)
+			if err := os.Chown(target, int(stat.Uid), int(stat.Gid)); err != nil {
+				log.Warning("Failed to change ownership of %q to UID:%d, GID:%d",
+					target, stat.Uid, stat.Gid)
 			}
 
 			return nil
@@ -366,14 +288,13 @@ func (tl *Telemetry) CopyTelemetryRecords(rootDir string) error {
 		return fmt.Errorf("Failed to archive telemetry records")
 	}
 
-	// tar cpf - /var/spool/telemetry | (cd /tmp/a; tar xBpf - )
-
 	return nil
 }
 
-// LogRecord send a new Telemetry record to the service
+// LogRecord generates and saves a Telemetry record
 func (tl *Telemetry) LogRecord(class string, severity int, payload string) error {
 
+	w := bytes.NewBuffer(nil)
 	if severity < 1 {
 		log.Warning("Telemetry severity (%d) less than 1, defaulting to 1", severity)
 		severity = 1
@@ -396,6 +317,8 @@ func (tl *Telemetry) LogRecord(class string, severity int, payload string) error
 		fmt.Sprintf("%d", severity),
 		"--class",
 		fmt.Sprintf("%s/%s", baseClass, class),
+		"--no-post",
+		"--echo",
 	}
 	if eventID != "" {
 		args = append(args,
@@ -408,8 +331,20 @@ func (tl *Telemetry) LogRecord(class string, severity int, payload string) error
 			"--payload", payload,
 		}...)
 
-	err := cmd.RunAndLog(args...)
+	err := cmd.Run(w, args...)
 	if err != nil {
+		return errors.Wrap(err)
+	}
+
+	recordName, err := randomString()
+	if err != nil {
+		return errors.Wrap(err)
+	}
+	recordName = recordName[:6]
+	telemetryFilename := filepath.Join(telemetrySpoolDir, recordName)
+
+	if err := ioutil.WriteFile(telemetryFilename, w.Bytes(), 0644); err != nil {
+		log.Info(err.Error())
 		return errors.Wrap(err)
 	}
 
